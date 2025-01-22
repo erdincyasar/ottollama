@@ -124,29 +124,22 @@
             margin-right: 20px;
         }
 
-        .controls button {
+       #sendButton {
             background: none;
             border: none;
             color: white;
             font-size: 25px;
             cursor: pointer;
-            margin-right: 20px;
-
         }
 
-        .controls button:hover {
-            background: none;
-        }
-
-        .controls button:before {
-            content: \'\\21d2';
-            /* Unicode right arrow */
+        #sendButton .icon {
+            display: inline-block;
         }
 
         .loading-icon {
             display: inline-block;
             animation: loading 1s infinite;
-            font-size: 20px;
+            font-size: 25px;
             color: white;
         }
 
@@ -161,12 +154,42 @@
                 transform: translateX(-5px);
             }
         }
+        .baseurl {
+        width: 100%;
+        top:0;
+        position: fixed;
+        background: #2c2c3e;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 10px;
+        font-size: small;
+        /* color: #d1d5db; */
+        }
+        .baseurl input {
+            border: 1px solid #3c3c4f;
+            border-radius: 5px;
+            outline: none;
+            resize: none;
+            background: #1e1e2f;
+            color: #d1d5db;
+            overflow-y: auto;
+        }
+
 
     </style>
 </head>
 
 <body>
-    <div class="chat-container">
+
+        <div class="baseurl">
+            <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}" ></label>
+            
+        </div>
+        <div class="chat-container">
+
         <div id="responseArea"></div>
         <div class="chat-input-container">
             <div class="chat-input">
@@ -177,7 +200,7 @@
                 <select id="modelSelect">
                     ${modelOptions}
                 </select>
-                <button id="sendButton"></button>
+                <button id="sendButton"><span class="icon">➔</span></button>
             </div>
         </div>
     </div>
@@ -193,29 +216,30 @@
             textarea.style.height = 'auto';
             textarea.style.height = textarea.scrollHeight + 'px';
         }
-         const vscode = acquireVsCodeApi();
+        const vscode = acquireVsCodeApi();
 
         function setLoadingState(isLoading) {
             const sendButton = document.getElementById('sendButton');
             if (isLoading) {
-                // Butonu yükleme durumuna geçir
-                sendButton.innerHTML = '<span class="loading-icon">●</span>';
+                // Butonu yükleme durumuna geçir (nokta animasyonu)
+                sendButton.innerHTML = '<span class="icon loading-icon">●</span>';
                 sendButton.disabled = true;
             } else {
-                // Butonu eski haline getir
-                sendButton.innerHTML = ''; // Boş bırakılabilir veya varsayılan içeriği eklenebilir
+                // Butonu eski haline getir (ok simgesi)
+                sendButton.innerHTML = '<span class="icon">➔</span>';
                 sendButton.disabled = false;
             }
         }
 
         function sendMessage() {
+            const baseUrl = document.getElementById('baseUrlInput').value;
             const model = document.getElementById('modelSelect').value;
             const prompt = document.getElementById('promptInput').value;
 
             // Yükleme durumuna geç
             setLoadingState(true);
 
-            vscode.postMessage({ command: 'sendPrompt', model, text: prompt });
+            vscode.postMessage({ command: 'sendPrompt', baseUrl, model, text: prompt });
         }
 
         document.getElementById('sendButton').addEventListener('click', sendMessage);
@@ -238,6 +262,11 @@
             // Yükleme durumundan çık
             setLoadingState(false);
         });
+
+        // Sayfa yüklendiğinde ok simgesini göster
+        window.onload = () => {
+            setLoadingState(false);
+        };
 
     </script>
 </body>

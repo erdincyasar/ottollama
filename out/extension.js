@@ -38,65 +38,77 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deactivate = exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
 const axios_1 = __importDefault(require("axios"));
-let panel = undefined;
+const chatHistory_1 = require("./chatHistory");
+let panels = {};
 function activate(context) {
     console.log('Congratulations, your extension "ottollama" is now active!');
+    const chatHistory = new chatHistory_1.ChatHistory(context);
     let disposable = vscode.commands.registerCommand('ottollama.start', () => __awaiter(this, void 0, void 0, function* () {
-        if (!panel) {
-            panel = vscode.window.createWebviewPanel('modelSelector', 'Model Selector', vscode.ViewColumn.Beside, {
-                enableScripts: true
-            });
-            try {
-                const response = yield axios_1.default.get('http://localhost:11434/api/tags');
-                console.log(response.data);
-                const models = response.data.models; // models dizisine erişim
-                if (!Array.isArray(models)) {
-                    throw new Error('API response is not an array');
-                }
-                // JSON verisini stringe dönüştürerek göster
-                vscode.window.showInformationMessage(`API Response: ${JSON.stringify(response.data)}`);
-                const modelOptions = models.map((model) => `<option value="${model.model}">${model.name}</option>`).join('');
-                panel.webview.html = getWebviewContent(modelOptions);
-                // Move message handling inside panel creation block
-                panel.webview.onDidReceiveMessage((message) => __awaiter(this, void 0, void 0, function* () {
-                    if (message.command === 'sendPrompt') {
-                        try {
-                            const response = yield axios_1.default.post('http://0.0.0.0:11434/api/chat', {
-                                model: message.model,
-                                messages: [{ role: 'user', content: message.text }],
-                                stream: false // "stream": false parametresini ekledik
+        const chatId = `chat-${Date.now()}`;
+        const panel = vscode.window.createWebviewPanel('modelSelector', 'Model Selector', vscode.ViewColumn.Beside, {
+            enableScripts: true
+        });
+        panels[chatId] = panel;
+        const defaultBaseUrl = 'http://localhost:11434';
+        try {
+            const response = yield axios_1.default.get(`${defaultBaseUrl}/api/tags`);
+            console.log(response.data);
+            const models = response.data.models; // models dizisine erişim
+            if (!Array.isArray(models)) {
+                throw new Error('API response is not an array');
+            }
+            // JSON verisini stringe dönüştürerek göster
+            vscode.window.showInformationMessage(`API Response: ${JSON.stringify(response.data)}`);
+            const modelOptions = models.map((model) => `<option value="${model.model}">${model.name}</option>`).join('');
+            panel.webview.html = getWebviewContent(context, modelOptions, defaultBaseUrl);
+            // Move message handling inside panel creation block
+            panel.webview.onDidReceiveMessage((message) => __awaiter(this, void 0, void 0, function* () {
+                const baseUrl = message.baseUrl || defaultBaseUrl;
+                if (message.command === 'sendPrompt') {
+                    try {
+                        const response = yield axios_1.default.post(`${baseUrl}/api/chat`, {
+                            model: message.model,
+                            messages: [{ role: 'user', content: message.text }],
+                            stream: false // "stream": false parametresini ekledik
+                        });
+                        console.log('API Response:', response.data); // API yanıtını kontrol et
+                        const userMessage = { role: 'user', content: message.text || '', model: message.model };
+                        const assistantMessage = { role: 'assistant', content: response.data.message.content, model: response.data.model };
+                        yield chatHistory.addMessage(userMessage);
+                        yield chatHistory.addMessage(assistantMessage);
+                        panel.webview.postMessage({
+                            type: 'response',
+                            text: response.data.message.content,
+                            model: response.data.model
+                        });
+                        panel.webview.postMessage({
+                            type: 'clearInput'
+                        });
+                    }
+                    catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                        if (panel) {
+                            panel.webview.postMessage({
+                                type: 'error',
+                                text: errorMessage
                             });
-                            console.log('API Response:', response.data); // API yanıtını kontrol et
-                            panel === null || panel === void 0 ? void 0 : panel.webview.postMessage({
-                                type: 'response',
-                                text: response.data.message.content // Doğru anahtarı kullanarak yanıtı al
-                            });
-                        }
-                        catch (error) {
-                            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                            if (panel) {
-                                panel.webview.postMessage({
-                                    type: 'error',
-                                    text: errorMessage
-                                });
-                            }
                         }
                     }
-                }));
-                panel.onDidDispose(() => {
-                    panel = undefined;
-                });
-            }
-            catch (error) {
-                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                vscode.window.showErrorMessage(`Failed to fetch models: ${errorMessage}`);
-            }
+                }
+            }));
+            panel.onDidDispose(() => {
+                delete panels[chatId];
+            });
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            vscode.window.showErrorMessage(`Failed to fetch models: ${errorMessage}`);
         }
     }));
     context.subscriptions.push(disposable);
 }
 exports.activate = activate;
-function getWebviewContent(modelOptions) {
+function getWebviewContent(context, modelOptions, defaultBaseUrl) {
     return `
 <!DOCTYPE html>
 <html lang="en">
@@ -224,26 +236,7 @@ function getWebviewContent(modelOptions) {
             margin-right: 20px;
         }
 
-        // .controls button {
-        //     background: none;
-        //     border: none;
-        //     color: white;
-        //     font-size: 25px;
-        //     cursor: pointer;
-        //     margin-right: 20px;
-
-        // }
-
-        // .controls button:hover {
-        //     background: none;
-        // }
-
-        // .controls button:before {
-        //     content: \'\\21d2';
-        //     /* Unicode right arrow */
-        // }
-
-        #sendButton {
+       #sendButton {
             background: none;
             border: none;
             color: white;
@@ -273,13 +266,42 @@ function getWebviewContent(modelOptions) {
                 transform: translateX(-5px);
             }
         }
+        .baseurl {
+        width: 100%;
+        top:0;
+        position: fixed;
+        background: #2c2c3e;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 10px;
+        font-size: small;
+        /* color: #d1d5db; */
+        }
+        .baseurl input {
+            border: 1px solid #3c3c4f;
+            border-radius: 5px;
+            outline: none;
+            resize: none;
+            background: #1e1e2f;
+            color: #d1d5db;
+            overflow-y: auto;
+        }
 
 
     </style>
 </head>
 
 <body>
-    <div class="chat-container">
+
+        <div class="baseurl">
+            <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}" ></label>
+            
+        </div>
+        <div class="chat-container">
+
         <div id="responseArea"></div>
         <div class="chat-input-container">
             <div class="chat-input">
@@ -290,7 +312,7 @@ function getWebviewContent(modelOptions) {
                 <select id="modelSelect">
                     ${modelOptions}
                 </select>
-                <button id="sendButton"></button>
+                <button id="sendButton"><span class="icon">➔</span></button>
             </div>
         </div>
     </div>
@@ -322,13 +344,14 @@ function getWebviewContent(modelOptions) {
         }
 
         function sendMessage() {
+            const baseUrl = document.getElementById('baseUrlInput').value;
             const model = document.getElementById('modelSelect').value;
             const prompt = document.getElementById('promptInput').value;
 
             // Yükleme durumuna geç
             setLoadingState(true);
 
-            vscode.postMessage({ command: 'sendPrompt', model, text: prompt });
+            vscode.postMessage({ command: 'sendPrompt', baseUrl, model, text: prompt });
         }
 
         document.getElementById('sendButton').addEventListener('click', sendMessage);
@@ -364,9 +387,8 @@ function getWebviewContent(modelOptions) {
     `;
 }
 function deactivate() {
-    if (panel) {
-        panel.dispose();
-    }
+    Object.values(panels).forEach(panel => panel.dispose());
+    panels = {};
 }
 exports.deactivate = deactivate;
 //# sourceMappingURL=extension.js.map
