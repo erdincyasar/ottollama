@@ -12,34 +12,23 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChatHistory = void 0;
 class ChatHistory {
     constructor(context) {
-        this.historyKey = 'chatHistory';
+        this.chatHistoryKeyPrefix = 'chatHistory-';
         this.context = context;
     }
-    addMessage(message) {
+    addMessage(chatId, message) {
         return __awaiter(this, void 0, void 0, function* () {
-            const history = this.getHistory();
-            history.push(message);
-            yield this.context.globalState.update(this.historyKey, history);
+            const chatHistory = this.getChatHistory(chatId);
+            chatHistory.push(message);
+            yield this.context.globalState.update(this.chatHistoryKeyPrefix + chatId, chatHistory);
         });
     }
-    getHistory() {
-        return this.context.globalState.get(this.historyKey, []);
+    getChatHistory(chatId) {
+        return this.context.globalState.get(this.chatHistoryKeyPrefix + chatId, []);
     }
-    clearHistory() {
+    clearHistory(chatId) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield this.context.globalState.update(this.historyKey, []);
+            yield this.context.globalState.update(this.chatHistoryKeyPrefix + chatId, []);
         });
-    }
-    saveChat(chatId, messages) {
-        return __awaiter(this, void 0, void 0, function* () {
-            yield this.context.globalState.update(`${this.historyKey}-${chatId}`, messages);
-        });
-    }
-    getChat(chatId) {
-        return this.context.globalState.get(`${this.historyKey}-${chatId}`, []);
-    }
-    getAllChats() {
-        return this.context.globalState.keys().filter(key => key.startsWith(this.historyKey));
     }
 }
 exports.ChatHistory = ChatHistory;

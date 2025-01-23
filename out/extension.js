@@ -40,10 +40,30 @@ const vscode = __importStar(require("vscode"));
 const axios_1 = __importDefault(require("axios"));
 const chatHistory_1 = require("./chatHistory");
 let panels = {};
+// Modularize the activation function
 function activate(context) {
-    console.log('Congratulations, your extension "ottollama" is now active!');
+    // Placeholder for future features
+    // Code Editing
+    // Extensions
+    // Integrated Terminal
+    // Git Integration
+    // Debugging
+    // IntelliSense
+    // Snippets
+    // Multi-cursor Editing
+    // File Explorer
+    // Integrated Test Runner
+    // Task Runner
+    // Code Review
+    // Refactoring
+    // Theme Customization
+    // Live Share
     const chatHistory = new chatHistory_1.ChatHistory(context);
-    let disposable = vscode.commands.registerCommand('ottollama.start', () => __awaiter(this, void 0, void 0, function* () {
+    context.subscriptions.push(vscode.commands.registerCommand('ottollama.start', () => startChat(context, chatHistory)));
+}
+exports.activate = activate;
+function startChat(context, chatHistory) {
+    return __awaiter(this, void 0, void 0, function* () {
         const chatId = `chat-${Date.now()}`;
         const panel = vscode.window.createWebviewPanel('modelSelector', 'Model Selector', vscode.ViewColumn.Beside, {
             enableScripts: true
@@ -52,49 +72,16 @@ function activate(context) {
         const defaultBaseUrl = 'http://localhost:11434';
         try {
             const response = yield axios_1.default.get(`${defaultBaseUrl}/api/tags`);
-            console.log(response.data);
-            const models = response.data.models; // models dizisine erişim
+            const models = response.data.models;
             if (!Array.isArray(models)) {
                 throw new Error('API response is not an array');
             }
-            // JSON verisini stringe dönüştürerek göster
-            vscode.window.showInformationMessage(`API Response: ${JSON.stringify(response.data)}`);
+            // Comment out this line to prevent the information message from showing
+            // vscode.window.showInformationMessage(`API Response: ${JSON.stringify(response.data)}`);
             const modelOptions = models.map((model) => `<option value="${model.model}">${model.name}</option>`).join('');
-            panel.webview.html = getWebviewContent(context, modelOptions, defaultBaseUrl);
-            // Move message handling inside panel creation block
+            panel.webview.html = getWebviewContent(context, modelOptions, defaultBaseUrl, chatHistory.getChatHistory(chatId));
             panel.webview.onDidReceiveMessage((message) => __awaiter(this, void 0, void 0, function* () {
-                const baseUrl = message.baseUrl || defaultBaseUrl;
-                if (message.command === 'sendPrompt') {
-                    try {
-                        const response = yield axios_1.default.post(`${baseUrl}/api/chat`, {
-                            model: message.model,
-                            messages: [{ role: 'user', content: message.text }],
-                            stream: false // "stream": false parametresini ekledik
-                        });
-                        console.log('API Response:', response.data); // API yanıtını kontrol et
-                        const userMessage = { role: 'user', content: message.text || '', model: message.model };
-                        const assistantMessage = { role: 'assistant', content: response.data.message.content, model: response.data.model };
-                        yield chatHistory.addMessage(userMessage);
-                        yield chatHistory.addMessage(assistantMessage);
-                        panel.webview.postMessage({
-                            type: 'response',
-                            text: response.data.message.content,
-                            model: response.data.model
-                        });
-                        panel.webview.postMessage({
-                            type: 'clearInput'
-                        });
-                    }
-                    catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                        if (panel) {
-                            panel.webview.postMessage({
-                                type: 'error',
-                                text: errorMessage
-                            });
-                        }
-                    }
-                }
+                yield handleWebviewMessage(chatId, message, panel, chatHistory, defaultBaseUrl);
             }));
             panel.onDidDispose(() => {
                 delete panels[chatId];
@@ -104,15 +91,65 @@ function activate(context) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             vscode.window.showErrorMessage(`Failed to fetch models: ${errorMessage}`);
         }
-    }));
-    context.subscriptions.push(disposable);
+    });
 }
-exports.activate = activate;
-function getWebviewContent(context, modelOptions, defaultBaseUrl) {
+function handleWebviewMessage(chatId, message, panel, chatHistory, defaultBaseUrl) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const baseUrl = message.baseUrl || defaultBaseUrl;
+        if (message.command === 'sendPrompt') {
+            try {
+                const userMessage = { role: 'user', content: message.text || '', model: message.model };
+                yield chatHistory.addMessage(chatId, userMessage);
+                panel.webview.postMessage({
+                    type: 'userMessage',
+                    text: userMessage.content,
+                    model: userMessage.model
+                });
+                const response = yield axios_1.default.post(`${baseUrl}/api/chat`, {
+                    model: message.model,
+                    messages: [{ role: 'user', content: message.text }],
+                    stream: false
+                });
+                // console.log('API Response:', response.data);
+                const assistantMessage = { role: 'assistant', content: response.data.message.content, model: response.data.model };
+                yield chatHistory.addMessage(chatId, assistantMessage);
+                panel.webview.postMessage({
+                    type: 'response',
+                    text: assistantMessage.content,
+                    model: assistantMessage.model
+                });
+                panel.webview.postMessage({
+                    type: 'clearInput'
+                });
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                if (panel) {
+                    panel.webview.postMessage({
+                        type: 'error',
+                        text: errorMessage
+                    });
+                }
+            }
+            finally {
+                // Exit loading state
+                panel.webview.postMessage({
+                    type: 'loadingState',
+                    isLoading: false
+                });
+            }
+        }
+    });
+}
+function getWebviewContent(context, modelOptions, defaultBaseUrl, chatHistory) {
+    const chatMessagesHtml = chatHistory.map(message => `
+        <div class="message ${message.role}">
+            <div class="text">${message.content}</div>
+        </div>
+    `).join('');
     return `
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -267,18 +304,20 @@ function getWebviewContent(context, modelOptions, defaultBaseUrl) {
             }
         }
         .baseurl {
-        width: 100%;
-        top:0;
-        position: fixed;
-        background: #2c2c3e;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        padding: 10px;
-        font-size: small;
-        /* color: #d1d5db; */
+            width: 100%;
+            top: 0;
+            position: fixed;
+            background: #2c2c3e;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            overflow: hidden;
+            padding: 10px;
+            font-size: small;
+            /* color: #d1d5db; */
         }
         .baseurl input {
             border: 1px solid #3c3c4f;
@@ -289,20 +328,29 @@ function getWebviewContent(context, modelOptions, defaultBaseUrl) {
             color: #d1d5db;
             overflow-y: auto;
         }
-
+        .icon-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
 
     </style>
 </head>
-
 <body>
 
         <div class="baseurl">
+            <button class="icon-button" id="newChatButton">🗨️</button>
+            <button class="icon-button" id="historyChatButton">📜</button>
             <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}" ></label>
-            
         </div>
         <div class="chat-container">
-
-        <div id="responseArea"></div>
+            <div class="chat-messages">
+                ${chatMessagesHtml}
+            </div>
+        <!-- <div id="responseArea"></div> -->
         <div class="chat-input-container">
             <div class="chat-input">
                 <textarea id="promptInput" placeholder="Type your message here..." style="resize: none;" oninput="autoResize(this)"></textarea>
@@ -365,14 +413,29 @@ function getWebviewContent(context, modelOptions, defaultBaseUrl) {
 
         window.addEventListener('message', (event) => {
             const message = event.data;
-            if (message.type === 'response') {
-                document.getElementById('responseArea').innerText = 'Response: ' + message.text;
+            if (message.type === 'userMessage') {
+                const chatMessagesContainer = document.querySelector('.chat-messages');
+                const newMessageHtml = \`
+                    <div class="message user">
+                        <div class="text">\${message.text}</div>
+                    </div>
+                \`;
+                chatMessagesContainer.innerHTML = newMessageHtml + chatMessagesContainer.innerHTML;
+            } else if (message.type === 'response') {
+                const chatMessagesContainer = document.querySelector('.chat-messages');
+                const newMessageHtml = \`
+                    <div class="message assistant">
+                        <div class="text">\${message.text}</div>
+                    </div>
+                \`;
+                chatMessagesContainer.innerHTML = newMessageHtml + chatMessagesContainer.innerHTML;
+                // Clear input field
+                document.getElementById('promptInput').value = '';
             } else if (message.type === 'error') {
                 document.getElementById('responseArea').innerText = 'Error: ' + message.text;
+            } else if (message.type === 'loadingState') {
+                setLoadingState(message.isLoading);
             }
-
-            // Yükleme durumundan çık
-            setLoadingState(false);
         });
 
         // Sayfa yüklendiğinde ok simgesini göster
