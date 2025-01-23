@@ -4,7 +4,7 @@
     "description": "A VS Code extension for interacting with Ollama",
     "version": "0.0.1",
     "engines": {
-        "vscode": "^1.60.0"
+        "vscode": "^1.96.0"
     },
     "categories": [
         "Other"
@@ -14,9 +14,13 @@
         "commands": [
             {
                 "command": "ottollama.start",
-                "title": "Chat with Model"
+                "title": "OTTOLLAMA"
             }
         ]
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yourusername/local-ollama-extension.git"
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
