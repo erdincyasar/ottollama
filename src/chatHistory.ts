@@ -4,6 +4,8 @@ interface ChatMessage {
     role: 'user' | 'assistant';
     content: string;
     model: string;
+    title: string;
+    timestamp: string;
 }
 
 export class ChatHistory {
@@ -26,5 +28,11 @@ export class ChatHistory {
 
     async clearHistory(chatId: string): Promise<void> {
         await this.context.globalState.update(this.chatHistoryKeyPrefix + chatId, []);
+    }
+
+    getAllChatIds(): string[] {
+        return this.context.globalState.keys()
+            .filter(key => key.startsWith(this.chatHistoryKeyPrefix))
+            .map(key => key.replace(this.chatHistoryKeyPrefix, ''));
     }
 }

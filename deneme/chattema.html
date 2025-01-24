@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -155,18 +154,20 @@
             }
         }
         .baseurl {
-        width: 100%;
-        top:0;
-        position: fixed;
-        background: #2c2c3e;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        padding: 10px;
-        font-size: small;
-        /* color: #d1d5db; */
+            width: 100%;
+            top: 0;
+            position: fixed;
+            background: #2c2c3e;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            overflow: hidden;
+            padding: 10px;
+            font-size: small;
+            /* color: #d1d5db; */
         }
         .baseurl input {
             border: 1px solid #3c3c4f;
@@ -177,20 +178,29 @@
             color: #d1d5db;
             overflow-y: auto;
         }
-
+        .icon-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
 
     </style>
 </head>
-
 <body>
 
         <div class="baseurl">
+            <button class="icon-button" id="newChatButton">🗨️</button>
+            <button class="icon-button" id="historyChatButton">📜</button>
             <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}" ></label>
-            
         </div>
         <div class="chat-container">
-
-        <div id="responseArea"></div>
+            <div class="chat-messages">
+                ${chatMessagesHtml}
+            </div>
+        <!-- <div id="responseArea"></div> -->
         <div class="chat-input-container">
             <div class="chat-input">
                 <textarea id="promptInput" placeholder="Type your message here..." style="resize: none;" oninput="autoResize(this)"></textarea>
@@ -253,14 +263,29 @@
 
         window.addEventListener('message', (event) => {
             const message = event.data;
-            if (message.type === 'response') {
-                document.getElementById('responseArea').innerText = 'Response: ' + message.text;
+            if (message.type === 'userMessage') {
+                const chatMessagesContainer = document.querySelector('.chat-messages');
+                const newMessageHtml = `
+                    <div class="message user">
+                        <div class="text">\${message.text}</div>
+                    </div>
+                `;
+                chatMessagesContainer.innerHTML = newMessageHtml + chatMessagesContainer.innerHTML;
+            } else if (message.type === 'response') {
+                const chatMessagesContainer = document.querySelector('.chat-messages');
+                const newMessageHtml = `
+                    <div class="message assistant">
+                        <div class="text">\${message.text}</div>
+                    </div>
+                `;
+                chatMessagesContainer.innerHTML = newMessageHtml + chatMessagesContainer.innerHTML;
+                // Clear input field
+                document.getElementById('promptInput').value = '';
             } else if (message.type === 'error') {
                 document.getElementById('responseArea').innerText = 'Error: ' + message.text;
+            } else if (message.type === 'loadingState') {
+                setLoadingState(message.isLoading);
             }
-
-            // Yükleme durumundan çık
-            setLoadingState(false);
         });
 
         // Sayfa yüklendiğinde ok simgesini göster

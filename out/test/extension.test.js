@@ -114,5 +114,91 @@ suite('Extension Test Suite', () => {
         (0, extension_1.activate)(mockContext);
         assert.strictEqual(mockContext.subscriptions.length, 1);
     }));
+    test('New chat command', () => __awaiter(void 0, void 0, void 0, function* () {
+        const mockContext = {
+            subscriptions: [],
+            workspaceState: {},
+            globalState: Object.assign(Object.assign({}, {}), { setKeysForSync: (keys) => { } }),
+            secrets: {},
+            extensionUri: vscode.Uri.parse(''),
+            environmentVariableCollection: {
+                getScoped: (scope) => ({
+                    replace: () => { },
+                    append: () => { },
+                    prepend: () => { },
+                    get: () => undefined,
+                    forEach: () => { },
+                    clear: () => { },
+                    delete: () => { }
+                }),
+                persistent: true,
+                replace: () => { },
+                append: () => { },
+                prepend: () => { },
+                get: () => undefined,
+                forEach: () => { },
+                clear: () => { },
+                delete: () => { },
+                forEachInScope: () => { }
+            },
+            storageUri: undefined,
+            globalStorageUri: vscode.Uri.parse(''),
+            logUri: vscode.Uri.parse(''),
+            extensionMode: vscode.ExtensionMode.Test,
+            extensionPath: '',
+            asAbsolutePath: (relativePath) => '',
+            storagePath: undefined,
+            globalStoragePath: '',
+            logPath: '',
+            extension: {},
+            languageModelAccessInformation: {}
+        };
+        (0, extension_1.activate)(mockContext);
+        yield vscode.commands.executeCommand('ottollama.newChat');
+        assert.strictEqual(mockContext.subscriptions.length, 2);
+    }));
+    test('Switch chat command', () => __awaiter(void 0, void 0, void 0, function* () {
+        const mockContext = {
+            subscriptions: [],
+            workspaceState: {},
+            globalState: Object.assign(Object.assign({}, {}), { setKeysForSync: (keys) => { } }),
+            secrets: {},
+            extensionUri: vscode.Uri.parse(''),
+            environmentVariableCollection: {
+                getScoped: (scope) => ({
+                    replace: () => { },
+                    append: () => { },
+                    prepend: () => { },
+                    get: () => undefined,
+                    forEach: () => { },
+                    clear: () => { },
+                    delete: () => { }
+                }),
+                persistent: true,
+                replace: () => { },
+                append: () => { },
+                prepend: () => { },
+                get: () => undefined,
+                forEach: () => { },
+                clear: () => { },
+                delete: () => { },
+                forEachInScope: () => { }
+            },
+            storageUri: undefined,
+            globalStorageUri: vscode.Uri.parse(''),
+            logUri: vscode.Uri.parse(''),
+            extensionMode: vscode.ExtensionMode.Test,
+            extensionPath: '',
+            asAbsolutePath: (relativePath) => '',
+            storagePath: undefined,
+            globalStoragePath: '',
+            logPath: '',
+            extension: {},
+            languageModelAccessInformation: {}
+        };
+        (0, extension_1.activate)(mockContext);
+        yield vscode.commands.executeCommand('ottollama.switchChat', 'chat-12345');
+        assert.strictEqual(mockContext.subscriptions.length, 2);
+    }));
 });
 //# sourceMappingURL=extension.test.js.map

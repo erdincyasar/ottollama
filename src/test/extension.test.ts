@@ -91,4 +91,100 @@ suite('Extension Test Suite', () => {
         activate(mockContext);
         assert.strictEqual(mockContext.subscriptions.length, 1);
     });
+
+    test('New chat command', async () => {
+        const mockContext: vscode.ExtensionContext = {
+            subscriptions: [],
+            workspaceState: {} as vscode.Memento,
+            globalState: {
+                ...{} as vscode.Memento,
+                setKeysForSync: (keys: readonly string[]) => {}
+            },
+            secrets: {} as vscode.SecretStorage,
+            extensionUri: vscode.Uri.parse(''),
+            environmentVariableCollection: {
+                getScoped: (scope: vscode.EnvironmentVariableScope) => ({
+                    replace: () => {},
+                    append: () => {},
+                    prepend: () => {},
+                    get: () => undefined,
+                    forEach: () => {},
+                    clear: () => {},
+                    delete: () => {}
+                }),
+                persistent: true,
+                replace: () => {},
+                append: () => {},
+                prepend: () => {},
+                get: () => undefined,
+                forEach: () => {},
+                clear: () => {},
+                delete: () => {},
+                forEachInScope: () => {}
+            } as unknown as vscode.GlobalEnvironmentVariableCollection, // Ensure the correct type is used
+            storageUri: undefined,
+            globalStorageUri: vscode.Uri.parse(''),
+            logUri: vscode.Uri.parse(''),
+            extensionMode: vscode.ExtensionMode.Test,
+            extensionPath: '',
+            asAbsolutePath: (relativePath: string) => '',
+            storagePath: undefined,
+            globalStoragePath: '',
+            logPath: '',
+            extension: {} as vscode.Extension<any>,
+            languageModelAccessInformation: {} as any
+        };
+
+        activate(mockContext);
+        await vscode.commands.executeCommand('ottollama.newChat');
+        assert.strictEqual(mockContext.subscriptions.length, 2);
+    });
+
+    test('Switch chat command', async () => {
+        const mockContext: vscode.ExtensionContext = {
+            subscriptions: [],
+            workspaceState: {} as vscode.Memento,
+            globalState: {
+                ...{} as vscode.Memento,
+                setKeysForSync: (keys: readonly string[]) => {}
+            },
+            secrets: {} as vscode.SecretStorage,
+            extensionUri: vscode.Uri.parse(''),
+            environmentVariableCollection: {
+                getScoped: (scope: vscode.EnvironmentVariableScope) => ({
+                    replace: () => {},
+                    append: () => {},
+                    prepend: () => {},
+                    get: () => undefined,
+                    forEach: () => {},
+                    clear: () => {},
+                    delete: () => {}
+                }),
+                persistent: true,
+                replace: () => {},
+                append: () => {},
+                prepend: () => {},
+                get: () => undefined,
+                forEach: () => {},
+                clear: () => {},
+                delete: () => {},
+                forEachInScope: () => {}
+            } as unknown as vscode.GlobalEnvironmentVariableCollection, // Ensure the correct type is used
+            storageUri: undefined,
+            globalStorageUri: vscode.Uri.parse(''),
+            logUri: vscode.Uri.parse(''),
+            extensionMode: vscode.ExtensionMode.Test,
+            extensionPath: '',
+            asAbsolutePath: (relativePath: string) => '',
+            storagePath: undefined,
+            globalStoragePath: '',
+            logPath: '',
+            extension: {} as vscode.Extension<any>,
+            languageModelAccessInformation: {} as any
+        };
+
+        activate(mockContext);
+        await vscode.commands.executeCommand('ottollama.switchChat', 'chat-12345');
+        assert.strictEqual(mockContext.subscriptions.length, 2);
+    });
 });

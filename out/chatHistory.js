@@ -30,6 +30,11 @@ class ChatHistory {
             yield this.context.globalState.update(this.chatHistoryKeyPrefix + chatId, []);
         });
     }
+    getAllChatIds() {
+        return this.context.globalState.keys()
+            .filter(key => key.startsWith(this.chatHistoryKeyPrefix))
+            .map(key => key.replace(this.chatHistoryKeyPrefix, ''));
+    }
 }
 exports.ChatHistory = ChatHistory;
 //# sourceMappingURL=chatHistory.js.map

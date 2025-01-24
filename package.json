@@ -15,6 +15,14 @@
             {
                 "command": "ottollama.start",
                 "title": "OTTOLLAMA"
+            },
+            {
+                "command": "ottollama.newChat",
+                "title": "New Chat"
+            },
+            {
+                "command": "ottollama.switchChat",
+                "title": "Switch Chat"
             }
         ]
     },
