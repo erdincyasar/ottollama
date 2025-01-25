@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
 import { ChatHistory } from './chatHistory';
+import { builtinModules } from 'module'
 
 interface ChatMessage {
     role: 'user' | 'assistant';
@@ -30,7 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('ottollama.newChat', () => {
             console.log('New chat command executed');
-            startChat(context, chatHistory);
+            startChat(context, chatHistory, undefined); // chatId parametresini boş olarak geçiriyoruz
         })
     );
 
@@ -49,7 +50,8 @@ async function startChat(context: vscode.ExtensionContext, chatHistory: ChatHist
         'Model Selector',
         vscode.ViewColumn.Beside,
         {
-            enableScripts: true
+            enableScripts: true,
+            localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
         }
     );
 
@@ -66,7 +68,7 @@ async function startChat(context: vscode.ExtensionContext, chatHistory: ChatHist
         }
 
         const modelOptions = models.map((model: any) => `<option value="${model.model}">${model.name}</option>`).join('');
-        panel.webview.html = getWebviewContent(context, modelOptions, defaultBaseUrl, chatHistory.getChatHistory(chatId));
+        panel.webview.html = getWebviewContent(panel, context, modelOptions, defaultBaseUrl, chatHistory.getChatHistory(chatId));
 
         panel.webview.onDidReceiveMessage(async (message: OllamaMessage) => {
             await handleWebviewMessage(chatId!, message, panel, chatHistory, defaultBaseUrl);
@@ -91,7 +93,10 @@ function updateHistoryDropdown(panel: vscode.WebviewPanel, chatHistory: ChatHist
     });
 }
 
-function getWebviewContent(context: vscode.ExtensionContext, modelOptions: string, defaultBaseUrl: string, chatHistory: ChatMessage[]): string {
+function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, modelOptions: string, defaultBaseUrl: string, chatHistory: ChatMessage[]): string {
+    const cssPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'styles.css');
+    const cssUri = panel.webview.asWebviewUri(cssPath);
+
     const chatMessagesHtml = chatHistory.map(message => `
         <div class="message ${message.role}">
             <div class="text">${message.content}</div>
@@ -105,188 +110,8 @@ function getWebviewContent(context: vscode.ExtensionContext, modelOptions: strin
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Dialog</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #1e1e2f;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: #d1d5db;
-        }
-
-        .chat-container {
-            position: fixed;
-            width: 100%;
-            bottom: 0;
-            max-height: 700px;
-            background: #2c2c3e;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .chat-messages {
-            flex: 1;
-            padding: 15px;
-            overflow-y: auto;
-            background: #1e1e2f;
-            display: flex;
-            flex-direction: column-reverse;
-        }
-
-        .message {
-            margin-bottom: 15px;
-        }
-
-        .message.user {
-            text-align: right;
-        }
-
-        .message.assistant {
-            text-align: left;
-        }
-
-        .message .text {
-            display: inline-block;
-            padding: 10px 15px;
-            border-radius: 15px;
-            max-width: 70%;
-        }
-
-        .message.user .text {
-            background: #4f46e5;
-            color: white;
-        }
-
-        .message.assistant .text {
-            background: #3c3c4f;
-            color: #d1d5db;
-        }
-
-        .chat-input-container {
-            background: #2c2c3e;
-            border-top: 1px solid #3c3c4f;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-        }
-
-        .chat-input {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .chat-input textarea {
-            flex: 1;
-            border: 1px solid #3c3c4f;
-            border-radius: 5px;
-            padding: 10px;
-            outline: none;
-            font-size: 12px;
-            resize: none;
-            height: 24px;
-            max-height: 120px;
-            background: #1e1e2f;
-            color: #d1d5db;
-            overflow-y: auto;
-        }
-
-        .chat-input textarea::-webkit-scrollbar {
-            display: none;
-        }
-
-        .controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 20px;
-        }
-        .controls select {
-            border: 1px solid #3c3c4f;
-            border-radius: 5px;
-            background: #1e1e2f;
-            color: #d1d5db;
-            font-size: 12px;
-            padding: 5px;
-            margin-left: auto;
-            margin-right: 20px;
-        }
-
-        #sendButton {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 25px;
-            cursor: pointer;
-        }
-
-        #sendButton .icon {
-            display: inline-block;
-        }
-
-        .loading-icon {
-            display: inline-block;
-            animation: loading 1s infinite;
-            font-size: 25px;
-            color: white;
-        }
-
-        @keyframes loading {
-            0% {
-                transform: translateX(-5px);
-            }
-            50% {
-                transform: translateX(5px);
-            }
-            100% {
-                transform: translateX(-5px);
-            }
-        }
-        .navbar {
-            width: 100%;
-            top: 0;
-            position: fixed;
-            background: #2c2c3e;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: center;
-            overflow: hidden;
-            padding: 10px;
-            font-size: small;
-        }
-        .navbar-left {
-            display: flex;
-            align-items: center;
-        }
-        .baseurl input {
-            border: 1px solid #3c3c4f;
-            border-radius: 5px;
-            outline: none;
-            resize: none;
-            background: #1e1e2f;
-            color: #d1d5db;
-            overflow-y: auto;
-        }
-        .icon-button {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            margin-right: 10px;
-        }
-
-    </style>
+    <link href="${cssUri}" rel="stylesheet">
+ 
 </head>
 <body>
 
@@ -361,10 +186,16 @@ function getWebviewContent(context: vscode.ExtensionContext, modelOptions: strin
             }
         });
 
-        document.getElementById('newChatButton').addEventListener('click', () => {
-            console.log('New chat button clicked');
-            vscode.postMessage({ command: 'ottollama.newChat' });
-        });
+        const newChatButton = document.getElementById('newChatButton');
+        if (!newChatButton) {
+            console.error('New Chat Button not found');
+        } else {
+            newChatButton.addEventListener('click', () => {
+                console.log('New chat button clicked');
+                vscode.postMessage({ command: 'ottollama.newChat', chatId: undefined });
+            });
+        }
+
 
         document.getElementById('historySelect').addEventListener('change', (event) => {
             const selectedChatId = event.target.value;

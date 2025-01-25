@@ -1,0 +1,1 @@
+Error: Can't resolve '@vscode/test-cli' in '/home/kartol/Music/ottollamav1/.vscode-test.mjs'. Try running 'npm install @vscode/test-cli', and then 'Refresh Tests'

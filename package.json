@@ -55,6 +55,7 @@
         "vscode-test": "^1.4.0"
     },
     "dependencies": {
+        "@vscode/test-cli": "^0.0.10",
         "axios": "^1.7.9",
         "glob": "^11.0.1"
     }
