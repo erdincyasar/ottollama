@@ -31,9 +31,25 @@ class ChatHistory {
         });
     }
     getAllChatIds() {
-        return this.context.globalState.keys()
+        const keys = this.context.globalState.keys();
+        console.log('Global state keys:', keys);
+        const chatIds = keys
             .filter(key => key.startsWith(this.chatHistoryKeyPrefix))
             .map(key => key.replace(this.chatHistoryKeyPrefix, ''));
+        console.log('Chat IDs:', chatIds);
+        return chatIds;
+    }
+    deleteChat(chatId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`Deleting chat history for chatId: ${chatId}`);
+            try {
+                yield this.context.globalState.update(this.chatHistoryKeyPrefix + chatId, undefined);
+                console.log('Key deleted:', this.chatHistoryKeyPrefix + chatId);
+            }
+            catch (error) {
+                console.error(`Failed to delete chat history for chatId: ${chatId}`, error);
+            }
+        });
     }
 }
 exports.ChatHistory = ChatHistory;

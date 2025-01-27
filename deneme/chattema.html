@@ -4,208 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Dialog</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #1e1e2f;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: #d1d5db;
-        }
-
-        .chat-container {
-            position: fixed;
-            width: 100%;
-            bottom: 0;
-            max-height: 700px;
-            background: #2c2c3e;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .chat-messages {
-            flex: 1;
-            padding: 15px;
-            overflow-y: auto;
-            background: #1e1e2f;
-            display: flex;
-            flex-direction: column-reverse;
-        }
-
-        .message {
-            margin-bottom: 15px;
-        }
-
-        .message.user {
-            text-align: right;
-        }
-
-        .message.assistant {
-            text-align: left;
-        }
-
-        .message .text {
-            display: inline-block;
-            padding: 10px 15px;
-            border-radius: 15px;
-            max-width: 70%;
-        }
-
-        .message.user .text {
-            background: #4f46e5;
-            color: white;
-        }
-
-        .message.assistant .text {
-            background: #3c3c4f;
-            color: #d1d5db;
-        }
-
-        .chat-input-container {
-            background: #2c2c3e;
-            border-top: 1px solid #3c3c4f;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-        }
-
-        .chat-input {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            /* padding: 10px; */
-        }
-
-        .chat-input textarea {
-            flex: 1;
-            border: 1px solid #3c3c4f;
-            border-radius: 5px;
-            padding: 10px;
-            outline: none;
-            font-size: 12px;
-            resize: none;
-            height: 24px;
-            /* Tek satır yüksekliği */
-            max-height: 120px;
-            /* Maksimum genişleme */
-            background: #1e1e2f;
-            color: #d1d5db;
-            overflow-y: auto;
-            /* Kaydırma etkin */
-        }
-
-        .chat-input textarea::-webkit-scrollbar {
-            display: none;
-            /* Scrollbar gizli */
-        }
-
-         .controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 20px;
-        }
-        .controls select {
-            border: 1px solid #3c3c4f;
-            border-radius: 5px;
-            background: #1e1e2f;
-            color: #d1d5db;
-            font-size: 12px;
-            padding: 5px;
-            margin-left: auto;
-            margin-right: 20px;
-        }
-
-       #sendButton {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 25px;
-            cursor: pointer;
-        }
-
-        #sendButton .icon {
-            display: inline-block;
-        }
-
-        .loading-icon {
-            display: inline-block;
-            animation: loading 1s infinite;
-            font-size: 25px;
-            color: white;
-        }
-
-        @keyframes loading {
-            0% {
-                transform: translateX(-5px);
-            }
-            50% {
-                transform: translateX(5px);
-            }
-            100% {
-                transform: translateX(-5px);
-            }
-        }
-        .baseurl {
-            width: 100%;
-            top: 0;
-            position: fixed;
-            background: #2c2c3e;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: center;
-            overflow: hidden;
-            padding: 10px;
-            font-size: small;
-            /* color: #d1d5db; */
-        }
-        .baseurl input {
-            border: 1px solid #3c3c4f;
-            border-radius: 5px;
-            outline: none;
-            resize: none;
-            background: #1e1e2f;
-            color: #d1d5db;
-            overflow-y: auto;
-        }
-        .icon-button {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            margin-right: 10px;
-        }
-
-    </style>
+    <link href="../media/styles.css" rel="stylesheet">
 </head>
 <body>
-
-        <div class="baseurl">
-            <button class="icon-button" id="newChatButton">🗨️</button>
-            <button class="icon-button" id="historyChatButton">📜</button>
-            <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}" ></label>
+    <div class="navbar">
+        <div class="navbar-left">
+            <button class="icon-button" id="chatHistoryButton">History</button>
+            <button class="icon-button" id="newChatButton">+</button>
         </div>
-        <div class="chat-container">
-            <div class="chat-messages">
-                ${chatMessagesHtml}
-            </div>
-        <!-- <div id="responseArea"></div> -->
+        <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}" ></label>
+    </div>
+    <div class="chat-container">
+        <div class="chat-messages">
+            ${chatMessagesHtml}
+        </div>
+        <div id="responseArea"></div>
         <div class="chat-input-container">
             <div class="chat-input">
                 <textarea id="promptInput" placeholder="Type your message here..." style="resize: none;" oninput="autoResize(this)"></textarea>
             </div>
-
             <div class="controls">
                 <select id="modelSelect">
                     ${modelOptions}
@@ -214,13 +31,11 @@
             </div>
         </div>
     </div>
+    <div class="history-panel" id="chatHistoryDiv" style="display: none;">
+        <h3>Chat History</h3>
+        <div id="historyContainer"></div>
+    </div>
 
-    <script>
-    function autoResize(textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
-    }
-    </script>
     <script>
         function autoResize(textarea) {
             textarea.style.height = 'auto';
@@ -231,11 +46,9 @@
         function setLoadingState(isLoading) {
             const sendButton = document.getElementById('sendButton');
             if (isLoading) {
-                // Butonu yükleme durumuna geçir (nokta animasyonu)
                 sendButton.innerHTML = '<span class="icon loading-icon">●</span>';
                 sendButton.disabled = true;
             } else {
-                // Butonu eski haline getir (ok simgesi)
                 sendButton.innerHTML = '<span class="icon">➔</span>';
                 sendButton.disabled = false;
             }
@@ -246,7 +59,6 @@
             const model = document.getElementById('modelSelect').value;
             const prompt = document.getElementById('promptInput').value;
 
-            // Yükleme durumuna geç
             setLoadingState(true);
 
             vscode.postMessage({ command: 'sendPrompt', baseUrl, model, text: prompt });
@@ -256,9 +68,25 @@
 
         document.getElementById('promptInput').addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
-                event.preventDefault(); // Enter tuşunun varsayılan işlevini engelle
+                event.preventDefault();
                 sendMessage();
             }
+        });
+
+        const newChatButton = document.getElementById('newChatButton');
+        if (!newChatButton) {
+            console.error('New Chat Button not found');
+        } else {
+            newChatButton.addEventListener('click', () => {
+                console.log('New chat button clicked');
+                vscode.postMessage({ command: 'ottollama.newChat', chatId: undefined });
+            });
+        }
+
+        const chatHistoryButton = document.getElementById('chatHistoryButton');
+        chatHistoryButton.addEventListener('click', () => {
+            const chatHistoryDiv = document.getElementById('chatHistoryDiv');
+            chatHistoryDiv.style.display = chatHistoryDiv.style.display === 'none' ? 'block' : 'none';
         });
 
         window.addEventListener('message', (event) => {
@@ -267,7 +95,7 @@
                 const chatMessagesContainer = document.querySelector('.chat-messages');
                 const newMessageHtml = `
                     <div class="message user">
-                        <div class="text">\${message.text}</div>
+                        <div class="text">${message.text}</div>
                     </div>
                 `;
                 chatMessagesContainer.innerHTML = newMessageHtml + chatMessagesContainer.innerHTML;
@@ -275,25 +103,44 @@
                 const chatMessagesContainer = document.querySelector('.chat-messages');
                 const newMessageHtml = `
                     <div class="message assistant">
-                        <div class="text">\${message.text}</div>
+                        <div class="text">${message.text}</div>
                     </div>
                 `;
                 chatMessagesContainer.innerHTML = newMessageHtml + chatMessagesContainer.innerHTML;
-                // Clear input field
                 document.getElementById('promptInput').value = '';
             } else if (message.type === 'error') {
                 document.getElementById('responseArea').innerText = 'Error: ' + message.text;
             } else if (message.type === 'loadingState') {
                 setLoadingState(message.isLoading);
+            } else if (message.type === 'updateHistoryPanel') {
+                const historyContainer = document.getElementById('historyContainer');
+                historyContainer.innerHTML = message.historyHtml;
+                historyContainer.querySelectorAll('.chat-history-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const chatId = item.getAttribute('data-chat-id');
+                        vscode.postMessage({ command: 'ottollama.switchChat', chatId: chatId });
+                    });
+                });
+                historyContainer.querySelectorAll('.delete-chat-button').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        const chatId = button.getAttribute('data-chat-id');
+                        vscode.postMessage({ command: 'deleteChat', chatId: chatId });
+                    });
+                });
+            } else if (message.type === 'loadChatHistory') {
+                const chatMessagesContainer = document.querySelector('.chat-messages');
+                chatMessagesContainer.innerHTML = message.history.map(msg => `
+                    <div class="message ${msg.role}">
+                        <div class="text">${msg.content}</div>
+                    </div>
+                `).join('');
             }
         });
 
-        // Sayfa yüklendiğinde ok simgesini göster
         window.onload = () => {
             setLoadingState(false);
         };
-
     </script>
 </body>
-
 </html>

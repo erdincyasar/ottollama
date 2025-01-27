@@ -3,6 +3,7 @@
     "displayName": "Local Ollama Extension",
     "description": "A VS Code extension for interacting with Ollama",
     "version": "0.0.1",
+    "publisher": "ottollama",
     "engines": {
         "vscode": "^1.96.0"
     },
@@ -14,15 +15,19 @@
         "commands": [
             {
                 "command": "ottollama.start",
-                "title": "OTTOLLAMA"
+                "title": "ottollama"
             },
             {
                 "command": "ottollama.newChat",
-                "title": "New Chat"
+                "title": "ottollama New Chat"
             },
             {
                 "command": "ottollama.switchChat",
-                "title": "Switch Chat"
+                "title": "ottollama Switch Chat"
+            },
+            {
+                "command": "deleteChat",
+                "title": "ottollama Delete Chat"
             }
         ]
     },

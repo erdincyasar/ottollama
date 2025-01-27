@@ -31,8 +31,22 @@ export class ChatHistory {
     }
 
     getAllChatIds(): string[] {
-        return this.context.globalState.keys()
+        const keys = this.context.globalState.keys();
+        console.log('Global state keys:', keys);
+        const chatIds = keys
             .filter(key => key.startsWith(this.chatHistoryKeyPrefix))
             .map(key => key.replace(this.chatHistoryKeyPrefix, ''));
+        console.log('Chat IDs:', chatIds);
+        return chatIds;
+    }
+
+    async deleteChat(chatId: string): Promise<void> {
+        console.log(`Deleting chat history for chatId: ${chatId}`);
+        try {
+            await this.context.globalState.update(this.chatHistoryKeyPrefix + chatId, undefined);
+            console.log('Key deleted:', this.chatHistoryKeyPrefix + chatId);
+        } catch (error) {
+            console.error(`Failed to delete chat history for chatId: ${chatId}`, error);
+        }
     }
 }

@@ -22,7 +22,10 @@ let panels: { [key: string]: vscode.WebviewPanel } = {};
 
 // Modularize the activation function
 export function activate(context: vscode.ExtensionContext) {
+    console.log('Activating extension...');
     const chatHistory = new ChatHistory(context);
+
+    console.log('ChatHistory instance created.');
 
     context.subscriptions.push(
         vscode.commands.registerCommand('ottollama.start', () => startChat(context, chatHistory))
@@ -41,6 +44,10 @@ export function activate(context: vscode.ExtensionContext) {
             startChat(context, chatHistory, chatId);
         })
     );
+
+    // Log the chat IDs on activation
+    const chatIds = chatHistory.getAllChatIds();
+    console.log('Chat IDs on activation:', chatIds);
 }
 
 async function startChat(context: vscode.ExtensionContext, chatHistory: ChatHistory, chatId?: string) {
@@ -78,18 +85,25 @@ async function startChat(context: vscode.ExtensionContext, chatHistory: ChatHist
             delete panels[chatId!];
         });
 
-        updateHistoryDropdown(panel, chatHistory);
+        updateHistoryPanel(panel, chatHistory);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         vscode.window.showErrorMessage(`Failed to fetch models: ${errorMessage}`);
     }
 }
 
-function updateHistoryDropdown(panel: vscode.WebviewPanel, chatHistory: ChatHistory) {
+function updateHistoryPanel(panel: vscode.WebviewPanel, chatHistory: ChatHistory) {
     const chatIds = chatHistory.getAllChatIds();
+    const historyHtml = chatIds.map(chatId => `
+        <div class="chat-history-item" data-chat-id="${chatId}">
+            <span>${chatId}</span>
+            <button class="delete-chat-button" data-chat-id="${chatId}">Delete</button>
+        </div>
+    `).join('');
+
     panel.webview.postMessage({
-        type: 'updateHistory',
-        history: chatIds
+        type: 'updateHistoryPanel',
+        historyHtml: historyHtml
     });
 }
 
@@ -111,29 +125,24 @@ function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.Extension
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Dialog</title>
     <link href="${cssUri}" rel="stylesheet">
- 
 </head>
 <body>
-
-        <div class="navbar">
-            <div class="navbar-left">
-                <button class="icon-button" id="newChatButton">+</button>
-                <select id="historySelect">
-                    <!-- Options for previous chats will be populated here -->
-                </select>
-            </div>
-            <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}" ></label>
+    <div class="navbar">
+        <div class="navbar-left">
+            <button class="icon-button" id="chatHistoryButton">History</button>
+            <button class="icon-button" id="newChatButton">+</button>
         </div>
-        <div class="chat-container">
-            <div class="chat-messages">
-                ${chatMessagesHtml}
-            </div>
+        <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}"></label>
+    </div>
+    <div class="chat-container">
+        <div class="chat-messages">
+            ${chatMessagesHtml}
+        </div>
         <div id="responseArea"></div>
         <div class="chat-input-container">
             <div class="chat-input">
                 <textarea id="promptInput" placeholder="Type your message here..." style="resize: none;" oninput="autoResize(this)"></textarea>
             </div>
-
             <div class="controls">
                 <select id="modelSelect">
                     ${modelOptions}
@@ -142,13 +151,14 @@ function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.Extension
             </div>
         </div>
     </div>
+    <div class="history-panel" id="chatHistoryDiv">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+            <h3>Chat History</h3>
+            <button class="icon-button" id="closeHistoryButton">✖</button> 
+        </div>
+        <div id="historyContainer"></div>
+    </div>
 
-    <script>
-    function autoResize(textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
-    }
-    </script>
     <script>
         function autoResize(textarea) {
             textarea.style.height = 'auto';
@@ -196,11 +206,16 @@ function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.Extension
             });
         }
 
+        const chatHistoryButton = document.getElementById('chatHistoryButton');
+        chatHistoryButton.addEventListener('click', () => {
+            const chatHistoryDiv = document.getElementById('chatHistoryDiv');
+            chatHistoryDiv.style.display = chatHistoryDiv.style.display === 'none' ? 'block' : 'none';
+        });
 
-        document.getElementById('historySelect').addEventListener('change', (event) => {
-            const selectedChatId = event.target.value;
-            console.log('History select changed:', selectedChatId);
-            vscode.postMessage({ command: 'ottollama.switchChat', chatId: selectedChatId });
+        const closeHistoryButton = document.getElementById('closeHistoryButton');
+        closeHistoryButton.addEventListener('click', () => {
+            const chatHistoryDiv = document.getElementById('chatHistoryDiv');
+            chatHistoryDiv.style.display = 'none';
         });
 
         window.addEventListener('message', (event) => {
@@ -226,11 +241,22 @@ function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.Extension
                 document.getElementById('responseArea').innerText = 'Error: ' + message.text;
             } else if (message.type === 'loadingState') {
                 setLoadingState(message.isLoading);
-            } else if (message.type === 'updateHistory') {
-                const historySelect = document.getElementById('historySelect');
-                historySelect.innerHTML = message.history.map(chatId => \`
-                    <option value="\${chatId}">\${chatId}</option>
-                \`).join('');
+            } else if (message.type === 'updateHistoryPanel') {
+                const historyContainer = document.getElementById('historyContainer');
+                historyContainer.innerHTML = message.historyHtml;
+                historyContainer.querySelectorAll('.chat-history-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const chatId = item.getAttribute('data-chat-id');
+                        vscode.postMessage({ command: 'ottollama.switchChat', chatId: chatId });
+                    });
+                });
+                historyContainer.querySelectorAll('.delete-chat-button').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        const chatId = button.getAttribute('data-chat-id');
+                        vscode.postMessage({ command: 'deleteChat', chatId: chatId });
+                    });
+                });
             } else if (message.type === 'loadChatHistory') {
                 const chatMessagesContainer = document.querySelector('.chat-messages');
                 chatMessagesContainer.innerHTML = message.history.map(msg => \`
@@ -238,16 +264,20 @@ function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.Extension
                         <div class="text">\${msg.content}</div>
                     </div>
                 \`).join('');
+            } else if (message.type === 'chatDeleted') {
+                const chatHistoryDiv = document.getElementById('chatHistoryDiv');
+                const chatItem = chatHistoryDiv.querySelector(\`.chat-history-item[data-chat-id="\${message.chatId}"]\`);
+                if (chatItem) {
+                    chatItem.remove();
+                }
             }
         });
 
         window.onload = () => {
             setLoadingState(false);
         };
-
     </script>
 </body>
-
 </html>
     `;
 }
@@ -315,6 +345,21 @@ async function handleWebviewMessage(chatId: string, message: OllamaMessage, pane
             type: 'loadChatHistory',
             history: history
         });
+    } else if (message.command === 'deleteChat') {
+        console.log(`Delete chat command received for chatId: ${chatId}`);
+        vscode.window.showInformationMessage(`Deleting chat: ${chatId}`);
+        try {
+            await chatHistory.deleteChat(chatId);
+            console.log(`Chat ${chatId} deleted`);
+            updateHistoryPanel(panel, chatHistory);
+            panel.webview.postMessage({
+                type: 'chatDeleted',
+                chatId: chatId
+            });
+        } catch (error) {
+            console.error(`Failed to delete chat ${chatId}`, error);
+            vscode.window.showErrorMessage(`Failed to delete chat: ${chatId}`);
+        }
     }
 }
 
