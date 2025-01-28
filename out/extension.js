@@ -38,13 +38,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deactivate = exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
 const axios_1 = __importDefault(require("axios"));
-let panels = {};
-// Modularize the activation function
+let panels = new Map();
 function activate(context) {
     context.subscriptions.push(vscode.commands.registerCommand('ottollama.start', () => startChat(context)));
-    context.subscriptions.push(vscode.commands.registerCommand('ottollama.newChat', () => {
-        console.log('New chat command executed');
-        startChat(context, undefined);
+    context.subscriptions.push(vscode.commands.registerCommand('ottollama.newChat', (chatId) => {
+        console.log('New chat command executed'); // Debug konsoluna yazdır
+        vscode.window.showInformationMessage('New chat started'); // Ekrana yazdır
+        startChat(context);
     }));
     context.subscriptions.push(vscode.commands.registerCommand('ottollama.switchChat', (chatId) => {
         console.log('Switch chat command executed with chatId:', chatId);
@@ -55,25 +55,34 @@ exports.activate = activate;
 function startChat(context, chatId) {
     return __awaiter(this, void 0, void 0, function* () {
         chatId = chatId || `chat-${Date.now()}`;
-        const panel = vscode.window.createWebviewPanel('modelSelector', 'Model Selector', vscode.ViewColumn.Beside, {
+        const panel = panels.get(chatId) || vscode.window.createWebviewPanel('modelSelector', 'New Chat', vscode.ViewColumn.Beside, {
             enableScripts: true,
             localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
         });
-        panels[chatId] = panel;
+        panels.set(chatId, panel);
         const defaultBaseUrl = 'http://localhost:11434';
+        // Sohbet içeriğini temizleme
+        panel.webview.html = ''; // Eski içeriği temizler
         try {
             const response = yield axios_1.default.get(`${defaultBaseUrl}/api/tags`);
             const models = response.data.models;
             if (!Array.isArray(models)) {
                 throw new Error('API response is not an array');
             }
-            const modelOptions = models.map((model) => `<option value="${model.model}">${model.name}</option>`).join('');
+            const modelOptions = models
+                .map((model) => `<option value="${model.model}">${model.name}</option>`)
+                .join('');
             panel.webview.html = getWebviewContent(panel, context, modelOptions, defaultBaseUrl);
             panel.webview.onDidReceiveMessage((message) => __awaiter(this, void 0, void 0, function* () {
-                yield handleWebviewMessage(chatId, message, panel, defaultBaseUrl);
+                if (message.command === 'ottollama.newChat') {
+                    console.log('New chat command received'); // Debug konsoluna yazdır
+                    vscode.window.showInformationMessage('New chat started'); // Ekrana yazdır
+                    startChat(context);
+                }
+                yield handleWebviewMessage(chatId, message, panel, context);
             }));
             panel.onDidDispose(() => {
-                delete panels[chatId];
+                panels.delete(chatId);
             });
         }
         catch (error) {
@@ -95,8 +104,9 @@ function getWebviewContent(panel, context, modelOptions, defaultBaseUrl) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Dialog</title>
     <link href="${cssUri}" rel="stylesheet">
+    <meta name="color-scheme" content="dark light">
 </head>
-<body>
+<body class="vscode-dark">
     <div class="navbar">
         <div class="navbar-left">
             <button class="icon-button" id="chatHistoryButton">History</button>
@@ -105,12 +115,13 @@ function getWebviewContent(panel, context, modelOptions, defaultBaseUrl) {
         <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}"></label>
     </div>
     <div class="chat-container">
-        <div class="chat-messages">
+        <div class="chat-messages"></div>
+        <div id="responseArea">
+            <pre><code class="language-javascript"></code></pre>
         </div>
-        <div id="responseArea"></div>
         <div class="chat-input-container">
             <div class="chat-input">
-                <textarea id="promptInput" placeholder="Type your message here..." style="resize: none;" oninput="autoResize(this)"></textarea>
+                <textarea id="promptInput" placeholder="Type your message here..." style="resize: none;"></textarea>
             </div>
             <div class="controls">
                 <select id="modelSelect">
@@ -133,9 +144,9 @@ function getWebviewContent(panel, context, modelOptions, defaultBaseUrl) {
 </html>
     `;
 }
-function handleWebviewMessage(chatId, message, panel, defaultBaseUrl) {
+function handleWebviewMessage(chatId, message, panel, context) {
     return __awaiter(this, void 0, void 0, function* () {
-        const baseUrl = message.baseUrl || defaultBaseUrl;
+        const baseUrl = message.baseUrl || 'http://localhost:11434';
         if (message.command === 'sendPrompt') {
             try {
                 const userMessage = {
@@ -167,18 +178,16 @@ function handleWebviewMessage(chatId, message, panel, defaultBaseUrl) {
                     text: assistantMessage.content,
                     model: assistantMessage.model
                 });
-                panel.webview.postMessage({
-                    type: 'clearInput'
-                });
+                const historyPath = vscode.Uri.joinPath(context.globalStorageUri, 'chat-history.json');
+                const chatHistory = { id: chatId, messages: [userMessage, assistantMessage] };
+                yield vscode.workspace.fs.writeFile(historyPath, Buffer.from(JSON.stringify(chatHistory, null, 2)));
             }
             catch (error) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                if (panel) {
-                    panel.webview.postMessage({
-                        type: 'error',
-                        text: errorMessage
-                    });
-                }
+                panel.webview.postMessage({
+                    type: 'error',
+                    text: errorMessage
+                });
             }
             finally {
                 panel.webview.postMessage({
@@ -190,8 +199,8 @@ function handleWebviewMessage(chatId, message, panel, defaultBaseUrl) {
     });
 }
 function deactivate() {
-    Object.values(panels).forEach(panel => panel.dispose());
-    panels = {};
+    panels.forEach(panel => panel.dispose());
+    panels.clear();
 }
 exports.deactivate = deactivate;
 //# sourceMappingURL=extension.js.map

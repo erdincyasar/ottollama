@@ -16,20 +16,21 @@ interface OllamaMessage {
     baseUrl?: string;
 }
 
-let panels: { [key: string]: vscode.WebviewPanel } = {};
+let panels: Map<string, vscode.WebviewPanel> = new Map();
 
-// Modularize the activation function
 export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('ottollama.start', () => startChat(context))
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('ottollama.newChat', () => {
-            console.log('New chat command executed');
-            startChat(context, undefined);
+        vscode.commands.registerCommand('ottollama.newChat', (chatId?: string) => {
+            console.log('New chat command executed'); // Debug konsoluna yazdır
+            vscode.window.showInformationMessage('New chat started'); // Ekrana yazdır
+            startChat(context);
         })
     );
+    
 
     context.subscriptions.push(
         vscode.commands.registerCommand('ottollama.switchChat', (chatId: string) => {
@@ -41,9 +42,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 async function startChat(context: vscode.ExtensionContext, chatId?: string) {
     chatId = chatId || `chat-${Date.now()}`;
-    const panel = vscode.window.createWebviewPanel(
+    const panel = panels.get(chatId) || vscode.window.createWebviewPanel(
         'modelSelector',
-        'Model Selector',
+        'New Chat',
         vscode.ViewColumn.Beside,
         {
             enableScripts: true,
@@ -51,9 +52,12 @@ async function startChat(context: vscode.ExtensionContext, chatId?: string) {
         }
     );
 
-    panels[chatId] = panel;
+    panels.set(chatId, panel);
 
     const defaultBaseUrl = 'http://localhost:11434';
+
+    // Sohbet içeriğini temizleme
+    panel.webview.html = ''; // Eski içeriği temizler
 
     try {
         const response = await axios.get(`${defaultBaseUrl}/api/tags`);
@@ -63,21 +67,30 @@ async function startChat(context: vscode.ExtensionContext, chatId?: string) {
             throw new Error('API response is not an array');
         }
 
-        const modelOptions = models.map((model: any) => `<option value="${model.model}">${model.name}</option>`).join('');
+        const modelOptions = models
+            .map((model: any) => `<option value="${model.model}">${model.name}</option>`)
+            .join('');
         panel.webview.html = getWebviewContent(panel, context, modelOptions, defaultBaseUrl);
 
         panel.webview.onDidReceiveMessage(async (message: OllamaMessage) => {
-            await handleWebviewMessage(chatId!, message, panel, defaultBaseUrl);
+
+            if (message.command === 'ottollama.newChat') {
+                console.log('New chat command received'); // Debug konsoluna yazdır
+                vscode.window.showInformationMessage('New chat started'); // Ekrana yazdır
+                startChat(context);
+            }
+            await handleWebviewMessage(chatId!, message, panel, context);
         });
 
         panel.onDidDispose(() => {
-            delete panels[chatId!];
+            panels.delete(chatId!);
         });
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         vscode.window.showErrorMessage(`Failed to fetch models: ${errorMessage}`);
     }
 }
+
 
 function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, modelOptions: string, defaultBaseUrl: string): string {
     const cssPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'styles.css');
@@ -93,8 +106,9 @@ function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.Extension
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Dialog</title>
     <link href="${cssUri}" rel="stylesheet">
+    <meta name="color-scheme" content="dark light">
 </head>
-<body>
+<body class="vscode-dark">
     <div class="navbar">
         <div class="navbar-left">
             <button class="icon-button" id="chatHistoryButton">History</button>
@@ -103,12 +117,13 @@ function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.Extension
         <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}"></label>
     </div>
     <div class="chat-container">
-        <div class="chat-messages">
+        <div class="chat-messages"></div>
+        <div id="responseArea">
+            <pre><code class="language-javascript"></code></pre>
         </div>
-        <div id="responseArea"></div>
         <div class="chat-input-container">
             <div class="chat-input">
-                <textarea id="promptInput" placeholder="Type your message here..." style="resize: none;" oninput="autoResize(this)"></textarea>
+                <textarea id="promptInput" placeholder="Type your message here..." style="resize: none;"></textarea>
             </div>
             <div class="controls">
                 <select id="modelSelect">
@@ -132,8 +147,8 @@ function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.Extension
     `;
 }
 
-async function handleWebviewMessage(chatId: string, message: OllamaMessage, panel: vscode.WebviewPanel, defaultBaseUrl: string) {
-    const baseUrl = message.baseUrl || defaultBaseUrl;
+async function handleWebviewMessage(chatId: string, message: OllamaMessage, panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
+    const baseUrl = message.baseUrl || 'http://localhost:11434';
     if (message.command === 'sendPrompt') {
         try {
             const userMessage: ChatMessage = {
@@ -170,17 +185,15 @@ async function handleWebviewMessage(chatId: string, message: OllamaMessage, pane
                 model: assistantMessage.model
             });
 
-            panel.webview.postMessage({
-                type: 'clearInput'
-            });
+            const historyPath = vscode.Uri.joinPath(context.globalStorageUri, 'chat-history.json');
+            const chatHistory = { id: chatId, messages: [userMessage, assistantMessage] };
+            await vscode.workspace.fs.writeFile(historyPath, Buffer.from(JSON.stringify(chatHistory, null, 2)));
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            if (panel) {
-                panel.webview.postMessage({
-                    type: 'error',
-                    text: errorMessage
-                });
-            }
+            panel.webview.postMessage({
+                type: 'error',
+                text: errorMessage
+            });
         } finally {
             panel.webview.postMessage({
                 type: 'loadingState',
@@ -191,6 +204,6 @@ async function handleWebviewMessage(chatId: string, message: OllamaMessage, pane
 }
 
 export function deactivate() {
-    Object.values(panels).forEach(panel => panel.dispose());
-    panels = {};
+    panels.forEach(panel => panel.dispose());
+    panels.clear();
 }

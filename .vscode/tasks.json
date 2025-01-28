@@ -10,15 +10,15 @@
 			"presentation": {
 				"reveal": "silent"
 			}
-		}/*  */
-		// {
-		// 	"label": "watch",
-		// 	"type": "npm",
-		// 	"script": "watch",
-		// 	"isBackground": true,
-		// 	"problemMatcher": [
-		// 		"$tsc-watch"
-		// 	]
-		// }
+		},
+		{
+			"label": "watch",
+			"type": "npm",
+			"script": "watch",
+			"isBackground": true,
+			"problemMatcher": [
+				"$tsc-watch"
+			]
+		}
 	]
 }
