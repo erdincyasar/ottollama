@@ -24,10 +24,6 @@
             {
                 "command": "ottollama.switchChat",
                 "title": "ottollama Switch Chat"
-            },
-            {
-                "command": "deleteChat",
-                "title": "ottollama Delete Chat"
             }
         ]
     },

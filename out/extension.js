@@ -38,28 +38,21 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deactivate = exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
 const axios_1 = __importDefault(require("axios"));
-const chatHistory_1 = require("./chatHistory");
 let panels = {};
 // Modularize the activation function
 function activate(context) {
-    console.log('Activating extension...');
-    const chatHistory = new chatHistory_1.ChatHistory(context);
-    console.log('ChatHistory instance created.');
-    context.subscriptions.push(vscode.commands.registerCommand('ottollama.start', () => startChat(context, chatHistory)));
+    context.subscriptions.push(vscode.commands.registerCommand('ottollama.start', () => startChat(context)));
     context.subscriptions.push(vscode.commands.registerCommand('ottollama.newChat', () => {
         console.log('New chat command executed');
-        startChat(context, chatHistory, undefined); // chatId parametresini boş olarak geçiriyoruz
+        startChat(context, undefined);
     }));
     context.subscriptions.push(vscode.commands.registerCommand('ottollama.switchChat', (chatId) => {
         console.log('Switch chat command executed with chatId:', chatId);
-        startChat(context, chatHistory, chatId);
+        startChat(context, chatId);
     }));
-    // Log the chat IDs on activation
-    const chatIds = chatHistory.getAllChatIds();
-    console.log('Chat IDs on activation:', chatIds);
 }
 exports.activate = activate;
-function startChat(context, chatHistory, chatId) {
+function startChat(context, chatId) {
     return __awaiter(this, void 0, void 0, function* () {
         chatId = chatId || `chat-${Date.now()}`;
         const panel = vscode.window.createWebviewPanel('modelSelector', 'Model Selector', vscode.ViewColumn.Beside, {
@@ -75,14 +68,13 @@ function startChat(context, chatHistory, chatId) {
                 throw new Error('API response is not an array');
             }
             const modelOptions = models.map((model) => `<option value="${model.model}">${model.name}</option>`).join('');
-            panel.webview.html = getWebviewContent(panel, context, modelOptions, defaultBaseUrl, chatHistory.getChatHistory(chatId));
+            panel.webview.html = getWebviewContent(panel, context, modelOptions, defaultBaseUrl);
             panel.webview.onDidReceiveMessage((message) => __awaiter(this, void 0, void 0, function* () {
-                yield handleWebviewMessage(chatId, message, panel, chatHistory, defaultBaseUrl);
+                yield handleWebviewMessage(chatId, message, panel, defaultBaseUrl);
             }));
             panel.onDidDispose(() => {
                 delete panels[chatId];
             });
-            updateHistoryPanel(panel, chatHistory);
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -90,27 +82,11 @@ function startChat(context, chatHistory, chatId) {
         }
     });
 }
-function updateHistoryPanel(panel, chatHistory) {
-    const chatIds = chatHistory.getAllChatIds();
-    const historyHtml = chatIds.map(chatId => `
-        <div class="chat-history-item" data-chat-id="${chatId}">
-            <span>${chatId}</span>
-            <button class="delete-chat-button" data-chat-id="${chatId}">Delete</button>
-        </div>
-    `).join('');
-    panel.webview.postMessage({
-        type: 'updateHistoryPanel',
-        historyHtml: historyHtml
-    });
-}
-function getWebviewContent(panel, context, modelOptions, defaultBaseUrl, chatHistory) {
+function getWebviewContent(panel, context, modelOptions, defaultBaseUrl) {
     const cssPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'styles.css');
     const cssUri = panel.webview.asWebviewUri(cssPath);
-    const chatMessagesHtml = chatHistory.map(message => `
-        <div class="message ${message.role}">
-            <div class="text">${message.content}</div>
-        </div>
-    `).join('');
+    const scriptPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'script.js');
+    const scriptUri = panel.webview.asWebviewUri(scriptPath);
     return `
 <!DOCTYPE html>
 <html lang="en">
@@ -130,7 +106,6 @@ function getWebviewContent(panel, context, modelOptions, defaultBaseUrl, chatHis
     </div>
     <div class="chat-container">
         <div class="chat-messages">
-            ${chatMessagesHtml}
         </div>
         <div id="responseArea"></div>
         <div class="chat-input-container">
@@ -153,129 +128,12 @@ function getWebviewContent(panel, context, modelOptions, defaultBaseUrl, chatHis
         <div id="historyContainer"></div>
     </div>
 
-    <script>
-        function autoResize(textarea) {
-            textarea.style.height = 'auto';
-            textarea.style.height = textarea.scrollHeight + 'px';
-        }
-        const vscode = acquireVsCodeApi();
-
-        function setLoadingState(isLoading) {
-            const sendButton = document.getElementById('sendButton');
-            if (isLoading) {
-                sendButton.innerHTML = '<span class="icon loading-icon">●</span>';
-                sendButton.disabled = true;
-            } else {
-                sendButton.innerHTML = '<span class="icon">➔</span>';
-                sendButton.disabled = false;
-            }
-        }
-
-        function sendMessage() {
-            const baseUrl = document.getElementById('baseUrlInput').value;
-            const model = document.getElementById('modelSelect').value;
-            const prompt = document.getElementById('promptInput').value;
-
-            setLoadingState(true);
-
-            vscode.postMessage({ command: 'sendPrompt', baseUrl, model, text: prompt });
-        }
-
-        document.getElementById('sendButton').addEventListener('click', sendMessage);
-
-        document.getElementById('promptInput').addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                sendMessage();
-            }
-        });
-
-        const newChatButton = document.getElementById('newChatButton');
-        if (!newChatButton) {
-            console.error('New Chat Button not found');
-        } else {
-            newChatButton.addEventListener('click', () => {
-                console.log('New chat button clicked');
-                vscode.postMessage({ command: 'ottollama.newChat', chatId: undefined });
-            });
-        }
-
-        const chatHistoryButton = document.getElementById('chatHistoryButton');
-        chatHistoryButton.addEventListener('click', () => {
-            const chatHistoryDiv = document.getElementById('chatHistoryDiv');
-            chatHistoryDiv.style.display = chatHistoryDiv.style.display === 'none' ? 'block' : 'none';
-        });
-
-        const closeHistoryButton = document.getElementById('closeHistoryButton');
-        closeHistoryButton.addEventListener('click', () => {
-            const chatHistoryDiv = document.getElementById('chatHistoryDiv');
-            chatHistoryDiv.style.display = 'none';
-        });
-
-        window.addEventListener('message', (event) => {
-            const message = event.data;
-            if (message.type === 'userMessage') {
-                const chatMessagesContainer = document.querySelector('.chat-messages');
-                const newMessageHtml = \`
-                    <div class="message user">
-                        <div class="text">\${message.text}</div>
-                    </div>
-                \`;
-                chatMessagesContainer.innerHTML = newMessageHtml + chatMessagesContainer.innerHTML;
-            } else if (message.type === 'response') {
-                const chatMessagesContainer = document.querySelector('.chat-messages');
-                const newMessageHtml = \`
-                    <div class="message assistant">
-                        <div class="text">\${message.text}</div>
-                    </div>
-                \`;
-                chatMessagesContainer.innerHTML = newMessageHtml + chatMessagesContainer.innerHTML;
-                document.getElementById('promptInput').value = '';
-            } else if (message.type === 'error') {
-                document.getElementById('responseArea').innerText = 'Error: ' + message.text;
-            } else if (message.type === 'loadingState') {
-                setLoadingState(message.isLoading);
-            } else if (message.type === 'updateHistoryPanel') {
-                const historyContainer = document.getElementById('historyContainer');
-                historyContainer.innerHTML = message.historyHtml;
-                historyContainer.querySelectorAll('.chat-history-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        const chatId = item.getAttribute('data-chat-id');
-                        vscode.postMessage({ command: 'ottollama.switchChat', chatId: chatId });
-                    });
-                });
-                historyContainer.querySelectorAll('.delete-chat-button').forEach(button => {
-                    button.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        const chatId = button.getAttribute('data-chat-id');
-                        vscode.postMessage({ command: 'deleteChat', chatId: chatId });
-                    });
-                });
-            } else if (message.type === 'loadChatHistory') {
-                const chatMessagesContainer = document.querySelector('.chat-messages');
-                chatMessagesContainer.innerHTML = message.history.map(msg => \`
-                    <div class="message \${msg.role}">
-                        <div class="text">\${msg.content}</div>
-                    </div>
-                \`).join('');
-            } else if (message.type === 'chatDeleted') {
-                const chatHistoryDiv = document.getElementById('chatHistoryDiv');
-                const chatItem = chatHistoryDiv.querySelector(\`.chat-history-item[data-chat-id="\${message.chatId}"]\`);
-                if (chatItem) {
-                    chatItem.remove();
-                }
-            }
-        });
-
-        window.onload = () => {
-            setLoadingState(false);
-        };
-    </script>
+    <script src="${scriptUri}"></script>
 </body>
 </html>
     `;
 }
-function handleWebviewMessage(chatId, message, panel, chatHistory, defaultBaseUrl) {
+function handleWebviewMessage(chatId, message, panel, defaultBaseUrl) {
     return __awaiter(this, void 0, void 0, function* () {
         const baseUrl = message.baseUrl || defaultBaseUrl;
         if (message.command === 'sendPrompt') {
@@ -287,7 +145,6 @@ function handleWebviewMessage(chatId, message, panel, chatHistory, defaultBaseUr
                     title: 'User Message',
                     timestamp: new Date().toISOString()
                 };
-                yield chatHistory.addMessage(chatId, userMessage);
                 panel.webview.postMessage({
                     type: 'userMessage',
                     text: userMessage.content,
@@ -305,7 +162,6 @@ function handleWebviewMessage(chatId, message, panel, chatHistory, defaultBaseUr
                     title: 'Assistant Response',
                     timestamp: new Date().toISOString()
                 };
-                yield chatHistory.addMessage(chatId, assistantMessage);
                 panel.webview.postMessage({
                     type: 'response',
                     text: assistantMessage.content,
@@ -329,30 +185,6 @@ function handleWebviewMessage(chatId, message, panel, chatHistory, defaultBaseUr
                     type: 'loadingState',
                     isLoading: false
                 });
-            }
-        }
-        else if (message.command === 'loadChatHistory') {
-            const history = chatHistory.getChatHistory(chatId);
-            panel.webview.postMessage({
-                type: 'loadChatHistory',
-                history: history
-            });
-        }
-        else if (message.command === 'deleteChat') {
-            console.log(`Delete chat command received for chatId: ${chatId}`);
-            vscode.window.showInformationMessage(`Deleting chat: ${chatId}`);
-            try {
-                yield chatHistory.deleteChat(chatId);
-                console.log(`Chat ${chatId} deleted`);
-                updateHistoryPanel(panel, chatHistory);
-                panel.webview.postMessage({
-                    type: 'chatDeleted',
-                    chatId: chatId
-                });
-            }
-            catch (error) {
-                console.error(`Failed to delete chat ${chatId}`, error);
-                vscode.window.showErrorMessage(`Failed to delete chat: ${chatId}`);
             }
         }
     });
