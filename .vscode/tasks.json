@@ -10,7 +10,7 @@
 			"presentation": {
 				"reveal": "silent"
 			}
-		},
+		}/* ,
 		{
 			"label": "watch",
 			"type": "npm",
@@ -19,6 +19,6 @@
 			"problemMatcher": [
 				"$tsc-watch"
 			]
-		}
+		} */
 	]
 }

@@ -20,77 +20,110 @@ let panels: Map<string, vscode.WebviewPanel> = new Map();
 
 export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
-        vscode.commands.registerCommand('ottollama.start', () => startChat(context))
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('ottollama.newChat', (chatId?: string) => {
-            console.log('New chat command executed'); // Debug konsoluna yazdır
-            vscode.window.showInformationMessage('New chat started'); // Ekrana yazdır
+        vscode.commands.registerCommand('ottollama.start', () => startChat(context)),
+        vscode.commands.registerCommand('ottollama.showHistory', () => {
+            const activeChatId = context.globalState.get<string>('activeChatId');
+            if (activeChatId) {
+                const panel = panels.get(activeChatId);
+                if (panel) {
+                    panel.webview.postMessage({ command: 'toggleHistory' });
+                }
+            }
+        }),
+        vscode.commands.registerCommand('ottollama.newChat', () => {
             startChat(context);
-        })
-    );
-    
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('ottollama.switchChat', (chatId: string) => {
-            console.log('Switch chat command executed with chatId:', chatId);
-            startChat(context, chatId);
+        }),
+        vscode.commands.registerCommand('ottollama.clearHistory', async () => {
+            const historyPath = vscode.Uri.joinPath(context.globalStorageUri, 'chat-history.json');
+            try {
+                await vscode.workspace.fs.delete(historyPath);
+                vscode.window.showInformationMessage('Chat history cleared.');
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to clear chat history: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
         })
     );
 }
 
 async function startChat(context: vscode.ExtensionContext, chatId?: string) {
-    chatId = chatId || `chat-${Date.now()}`;
-    const panel = panels.get(chatId) || vscode.window.createWebviewPanel(
-        'modelSelector',
-        'New Chat',
-        vscode.ViewColumn.Beside,
-        {
-            enableScripts: true,
-            localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
-        }
-    );
+    vscode.commands.executeCommand('setContext', 'ottollama.webviewActive', true);
 
-    panels.set(chatId, panel);
+    chatId = chatId || `chat-${Date.now()}`;
+    let panel = panels.get(chatId);
+
+    if (!panel) {
+        panel = vscode.window.createWebviewPanel(
+            'ottollama.webviewActive',
+            `${chatId}`,
+            vscode.ViewColumn.One, // Open in the secondary side bar
+            {
+                enableScripts: true,
+                localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')]
+            }
+        );
+        panel.onDidChangeViewState((event) => {
+            const isActive = event.webviewPanel.active;
+            vscode.commands.executeCommand('setContext', 'ottollama.webviewActive', isActive);
+        });
+        panel.onDidDispose(() => {
+            vscode.commands.executeCommand('setContext', 'ottollama.webviewActive', false);
+            panels.delete(chatId!);
+        });
+        context.globalState.update('activeChatId', chatId);
+        panels.set(chatId, panel);
+    }
 
     const defaultBaseUrl = 'http://localhost:11434';
-
-    // Sohbet içeriğini temizleme
-    panel.webview.html = ''; // Eski içeriği temizler
+    panel.webview.html = '';
 
     try {
         const response = await axios.get(`${defaultBaseUrl}/api/tags`);
         const models = response.data.models;
 
         if (!Array.isArray(models)) {
-            throw new Error('API response is not an array');
+            throw new Error('API yanıtı bir dizi değil');
         }
 
-        const modelOptions = models
-            .map((model: any) => `<option value="${model.model}">${model.name}</option>`)
-            .join('');
+        const modelOptions = models.map((model: any) => `<option value="${model.model}">${model.name}</option>`).join('');
         panel.webview.html = getWebviewContent(panel, context, modelOptions, defaultBaseUrl);
 
         panel.webview.onDidReceiveMessage(async (message: OllamaMessage) => {
-
-            if (message.command === 'ottollama.newChat') {
-                console.log('New chat command received'); // Debug konsoluna yazdır
-                vscode.window.showInformationMessage('New chat started'); // Ekrana yazdır
-                startChat(context);
+            if (message.command === 'newChatSession' && panel) {
+                await handleNewChatSession(context, panel, defaultBaseUrl);
+                return;
             }
-            await handleWebviewMessage(chatId!, message, panel, context);
+            if (panel) {
+                await handleWebviewMessage(chatId!, message, panel, context);
+            }
         });
 
-        panel.onDidDispose(() => {
-            panels.delete(chatId!);
-        });
+        panel.onDidDispose(() => panels.delete(chatId!));
     } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        vscode.window.showErrorMessage(`Failed to fetch models: ${errorMessage}`);
+        vscode.window.showErrorMessage(`Modeller alınamadı: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
     }
 }
 
+async function handleNewChatSession(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, defaultBaseUrl: string) {
+    console.log('Yeni Sohbet Oturumu Başlatılıyor...');
+    const chatId = `chat-${Date.now()}`;
+    context.globalState.update('activeChatId', chatId);
+    panel.title = chatId;
+    panel.webview.html = '';
+
+    try {
+        const response = await axios.get(`${defaultBaseUrl}/api/tags`);
+        const models = response.data.models;
+
+        if (!Array.isArray(models)) {
+            throw new Error('API yanıtı bir dizi değil');
+        }
+
+        const modelOptions = models.map((model: any) => `<option value="${model.model}">${model.name}</option>`).join('');
+        panel.webview.html = getWebviewContent(panel, context, modelOptions, defaultBaseUrl);
+    } catch (error) {
+        vscode.window.showErrorMessage(`Yeni sohbet başlatılamadı: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`);
+    }
+}
 
 function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.ExtensionContext, modelOptions: string, defaultBaseUrl: string): string {
     const cssPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'styles.css');
@@ -113,6 +146,8 @@ function getWebviewContent(panel: vscode.WebviewPanel, context: vscode.Extension
         <div class="navbar-left">
             <button class="icon-button" id="chatHistoryButton">History</button>
             <button class="icon-button" id="newChatButton">+</button>
+            <button class="icon-button" id="showHistory"><span class="codicon codicon-history"></span> History</button>
+            <button class="icon-button" id="startNewChat"><span class="codicon codicon-add"></span> New Chat</button>
         </div>
         <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}"></label>
     </div>
@@ -189,10 +224,9 @@ async function handleWebviewMessage(chatId: string, message: OllamaMessage, pane
             const chatHistory = { id: chatId, messages: [userMessage, assistantMessage] };
             await vscode.workspace.fs.writeFile(historyPath, Buffer.from(JSON.stringify(chatHistory, null, 2)));
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             panel.webview.postMessage({
                 type: 'error',
-                text: errorMessage
+                text: error instanceof Error ? error.message : 'Unknown error'
             });
         } finally {
             panel.webview.postMessage({
