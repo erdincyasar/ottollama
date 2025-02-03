@@ -17,6 +17,7 @@ function sendMessage() {
     const prompt = document.getElementById('promptInput').value;
 
     setLoadingState(true);
+    console.log('Sending message:', { baseUrl, model, text: prompt });
     vscode.postMessage({ command: 'sendPrompt', baseUrl, model, text: prompt });
 }
 
@@ -64,11 +65,12 @@ document.getElementById('startNewChat')?.addEventListener('click', () => {
     vscode.postMessage({ command: 'newChatSession' });
 });
 
-
 window.addEventListener('message', (event) => {
     const message = event.data;
     const chatMessagesContainer = document.querySelector('.chat-messages');
     const newMessageDiv = document.createElement('div');
+
+    console.log('Received message:', message);
 
     if (message.command === 'toggleHistory') {
         const chatHistoryDiv = document.getElementById('chatHistoryDiv');
@@ -82,6 +84,7 @@ window.addEventListener('message', (event) => {
         }
     } else if (message.type === 'error') {
         document.getElementById('responseArea').textContent = 'Error: ' + message.text;
+        console.error('Error: ' + message.text);
     } else if (message.type === 'loadingState') {
         setLoadingState(message.isLoading);
     }

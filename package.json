@@ -16,138 +16,24 @@
     ],
     "main": "./out/extension.js",
     "contributes": {
-        "commands": [
-            {
-                "command": "ottollama.start",
-                "title": "ottollama"
-            },
-            {
-                "command": "ottollama.newChat",
-                "title": "ottollama New Chat"
-            },
-            {
-                "command": "ottollama.showHistory",
-                "title": "Show Chat History"
-            },
-            {
-                "command": "ottollama.clearHistory",
-                "title": "Clear Chat History"
-            }
-        ],
         "viewsContainers": {
-            "secondarySidebar": [
-                {
-                    "id": "ottollama",
-                    "title": "Ollama",
-                    "icon": "./media/g2.svg"
-                }
-            ],
             "activitybar": [
                 {
-                    "id": "ottollama",
+                    "id": "ottollamaSidebar",
                     "title": "Ollama",
                     "icon": "./media/g2.svg"
-                }
-            ],
-            "explorer": [
-                {
-                    "id": "ottollama",
-                    "title": "Ollama",
-                    "icon": "./media/g2.svg"
-                }
-            ],
-            "sidebar": [
-                {
-                    "id": "ottollama",
-                    "title": "Ollama",
-                    "icon": "./media/g2.svg"
-                }
-            ], 
-            "panel": [
-                {
-                    "id": "ottollama",
-                    "title": "Ollama",
-                    "icon": "./media/g2.svg"
-                }
-            ],
-            "statusbar": [
-                {
-                    "id": "ottollama",
-                    "title": "Ollama",
-                    "icon": "./media/g2.svg"
-                }
-            ],
-            "editor/title": [
-                {
-                    "id": "ottollama",
-                    "title": "Ollama",
-                    "icon": "./media/g2.svg"
-                }
-            ],
-            "view/title": [
-                {
-                    "id": "history",
-                    "title": "History",
-                    "icon": "./media/history.svg"
-                },
-                {
-                    "id": "newChat",
-                    "title": "New Chat",
-                    "icon": "./media/newChat.svg"
                 }
             ]
         },
         "views": {
-            "ottollama": [
+            "ottollamaSidebar": [
                 {
-                    "id": "ottollama",
-                    "name": "Ollama",
-                    "webviewViewId": "ottollama",
-                    "iconPath": "./media/g2.svg",
-                    "visibility": "visible",
-                    "retainContextWhenHidden": true
-                },
-                {
-                    "id": "history",
-                    "name": "History",
-                    "webviewViewId": "history",
-                    "iconPath": "./media/history.svg",
-                    "visibility": "visible",
-                    "retainContextWhenHidden": true
-                },
-                {
-                    "id": "newChat",
-                    "name": "New Chat",
-                    "webviewViewId": "newChat",
-                    "iconPath": "./media/newChat.svg",
-                    "visibility": "visible",
-                    "retainContextWhenHidden": true
-                }
-            ]
-        },
-        "menus": {
-            "view/title": [
-                {
-                    "command": "ottollama.start",
-                    "when": "ottollama.webviewActive",
-                    "group": "navigation",
-                    "icon": "codicon-chat"
-                },
-                {
-                    "command": "ottollama.showHistory",
-                    "when": "ottollama.webviewActive",
-                    "group": "navigation",
-                    "icon": "codicon-history"
-                },
-                {
-                    "command": "ottollama.newChat",
-                    "when": "ottollama.webviewActive",
-                    "group": "navigation",
-                    "icon": "codicon-add"
+                    "id": "chatView",
+                    "name": "Chat",
+                    "type": "webview"
                 }
             ]
         }
-
     },
     "repository": {
         "type": "git",
@@ -175,7 +61,7 @@
         "sinon": "^15.0.0",
         "tslint": "^6.1.3",
         "typescript": "^4.2.3",
-         "vscode-test": "^1.4.0"
+        "vscode-test": "^1.4.0"
     },
     "dependencies": {
         "@vscode/test-cli": "^0.0.10",
