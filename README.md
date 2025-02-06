@@ -1,4 +1,4 @@
-# Local Ollama Extension
+# Local Ollama Vscode Extension
 
 <img src="media/ottollama.png" alt="Ollama Logo" width="200"/>
 

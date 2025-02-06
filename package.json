@@ -13,7 +13,9 @@
     "vscode": "^1.96.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "AI",
+    "Chat"
   ],
   "activationEvents": [],
   "main": "./out/extension.js",
@@ -81,5 +83,13 @@
     "glob": "^8.1.0",
     "mocha": "^10.2.0",
     "typescript": "^4.4.3"
-  }
+  },
+  "keywords": [
+    "vscode",
+    "extension",
+    "ollama",
+    "chat",
+    "AI",
+    "local"
+  ]
 }
