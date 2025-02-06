@@ -16,20 +16,32 @@ function setLoadingState(isLoading) {
     }
 }
 
+function hideWelcomeMessage() {
+    const welcomeMessageDiv = document.getElementById('welcomeMessage');
+    if (welcomeMessageDiv) {
+        welcomeMessageDiv.style.display = 'none';
+    }
+}
+
 function sendMessage() {
     const baseUrl = document.getElementById('baseUrlInput').value;
     const model = document.getElementById('modelSelect').value;
     const prompt = document.getElementById('promptInput').value;
 
     setLoadingState(true);
+    hideWelcomeMessage();
 
     vscode.postMessage({ command: 'sendPrompt', baseUrl, model, text: prompt });
 }
 
+document.getElementById('promptInput').addEventListener('input', (event) => {
+    autoResize(event.target);
+});
+
 document.getElementById('sendButton').addEventListener('click', sendMessage);
 
 document.getElementById('promptInput').addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         sendMessage();
     }
@@ -38,13 +50,11 @@ document.getElementById('promptInput').addEventListener('keydown', (event) => {
 const newChatButton = document.getElementById('newChatButton');
 if (newChatButton) {
     newChatButton.addEventListener('click', () => {
-        console.log('New chat button clicked'); // Debug konsoluna yazdır
-        vscode.postMessage({ command: `ottollama.newChat`});
+        vscode.postMessage({ command: 'ottollama.newChat' });
     });
 } else {
     console.error('New Chat Button not found');
 }
-
 
 const chatHistoryButton = document.getElementById('chatHistoryButton');
 if (chatHistoryButton) {
@@ -54,30 +64,39 @@ if (chatHistoryButton) {
     });
 }
 
-const closeHistoryButton = document.getElementById('closeHistoryButton');
-if (closeHistoryButton) {
-    closeHistoryButton.addEventListener('click', () => {
-        const chatHistoryDiv = document.getElementById('chatHistoryDiv');
-        chatHistoryDiv.style.display = 'none';
-    });
-}
 
 window.addEventListener('message', (event) => {
     const message = event.data;
     const chatMessagesContainer = document.querySelector('.chat-messages');
+    const promptInput = document.getElementById('promptInput');
     if (message.type === 'userMessage') {
         const newMessageDiv = document.createElement('div');
         newMessageDiv.classList.add('message', 'user');
-        newMessageDiv.textContent = message.text;
+        const textDiv = document.createElement('div');
+        textDiv.classList.add('text');
+        textDiv.textContent = message.text;
+        newMessageDiv.appendChild(textDiv);
         chatMessagesContainer.prepend(newMessageDiv);
     } else if (message.type === 'response') {
         const newMessageDiv = document.createElement('div');
         newMessageDiv.classList.add('message', 'assistant');
-        newMessageDiv.textContent = message.text;
+        const textDiv = document.createElement('div');
+        textDiv.classList.add('text');
+        textDiv.textContent = message.text;
+        newMessageDiv.appendChild(textDiv);
         chatMessagesContainer.prepend(newMessageDiv);
-        document.getElementById('promptInput').value = '';
+        promptInput.value = '';
+        promptInput.style.height = '24px'; // Reset the height
     } else if (message.type === 'error') {
-        document.getElementById('responseArea').textContent = 'Error: ' + message.text;
+        const newMessageDiv = document.createElement('div');
+        newMessageDiv.classList.add('message', 'error');
+        const textDiv = document.createElement('div');
+        textDiv.classList.add('text');
+        textDiv.textContent = message.text;
+        newMessageDiv.appendChild(textDiv);
+        chatMessagesContainer.prepend(newMessageDiv);
+        promptInput.value = '';
+        promptInput.style.height = '24px'; // Reset the height
     } else if (message.type === 'loadingState') {
         setLoadingState(message.isLoading);
     } 

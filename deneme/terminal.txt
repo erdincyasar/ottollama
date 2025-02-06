@@ -1,8 +1,0 @@
-ollama list
-NAME                  ID              SIZE      MODIFIED   
-stable-code:latest    37681d29a55a    1.6 GB    5 days ago    
-gemma2:2b             8ccf136fdd52    1.6 GB    5 days ago    
-llama3.2:1b           baf6a787fdff    1.3 GB    5 days ago    
-llama3.2:latest       a80c4f17acd5    2.0 GB    5 days ago  
-
-curl http://localhost:11434/api/chat -d '{"model": "gemma2:2b","messages": [{"role": "user","content": "test"}], "stream": false}'
