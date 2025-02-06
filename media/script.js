@@ -57,13 +57,29 @@ if (newChatButton) {
 }
 
 const chatHistoryButton = document.getElementById('chatHistoryButton');
+const chatHistoryDiv = document.getElementById('chatHistoryDiv');
 if (chatHistoryButton) {
     chatHistoryButton.addEventListener('click', () => {
-        const chatHistoryDiv = document.getElementById('chatHistoryDiv');
-        chatHistoryDiv.style.display = chatHistoryDiv.style.display === 'none' ? 'block' : 'none';
+        chatHistoryDiv.style.display = chatHistoryDiv.style.display === 'block' ? 'none' : 'block';
     });
+} else {
+    console.error('Chat History Button not found');
 }
 
+const closeHistoryButton = document.getElementById('closeHistoryButton');
+if (closeHistoryButton) {
+    closeHistoryButton.addEventListener('click', () => {
+        chatHistoryDiv.style.display = 'none';
+    });
+} else {
+    console.error('Close History Button not found');
+}
+
+document.addEventListener('click', (event) => {
+    if (!chatHistoryDiv.contains(event.target) && !chatHistoryButton.contains(event.target)) {
+        chatHistoryDiv.style.display = 'none';
+    }
+});
 
 window.addEventListener('message', (event) => {
     const message = event.data;

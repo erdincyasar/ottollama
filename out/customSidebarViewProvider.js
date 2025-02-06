@@ -116,11 +116,18 @@ class CustomSidebarViewProvider {
     <div class="navbar-container">
       <div class="navbar">
           <div class="navbar-left">
-              <button class="icon-button" id="chatHistoryButton">History</button>
+              <button class="icon-button" id="chatHistoryButton">&#11178;</button>
               <button class="icon-button" id="newChatButton">+</button>
           </div>
           <label for="baseUrlInput">Base URL:<input type="text" id="baseUrlInput" value="${defaultBaseUrl}"></label>
       </div>
+    </div>
+    <div class="history-panel" id="chatHistoryDiv">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+            <h3>Chat History</h3>
+            <button class="icon-button" id="closeHistoryButton">✖</button> 
+        </div>
+        <div id="historyContainer"></div>
     </div>
     <div id="welcomeMessage" class="welcome-message">
       <img src="${webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "ottollama.png"))}" alt="Welcome Icon" class="welcome-icon">
@@ -141,13 +148,6 @@ class CustomSidebarViewProvider {
                 <button id="sendButton"><span class="icon">➔</span></button>
             </div>
         </div>
-    </div>
-    <div class="history-panel" id="chatHistoryDiv">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px;">
-            <h3>Chat History</h3>
-            <button class="icon-button" id="closeHistoryButton">✖</button> 
-        </div>
-        <div id="historyContainer"></div>
     </div>
 
     <script src="${scriptUri}"></script>
