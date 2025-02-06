@@ -1,6 +1,6 @@
 # Local Ollama Extension
 
-![Ollama Logo](media/ottollama.png)
+<img src="media/ottollama.png" alt="Ollama Logo" width="200"/>
 
 ## Description
 Local Ollama Extension is a Visual Studio Code extension that allows users to interact with the Ollama API directly from the VS Code interface. This extension provides a seamless way to send prompts and receive responses, making it easier to integrate Ollama's capabilities into your development workflow.
