@@ -23,6 +23,13 @@ function hideWelcomeMessage() {
     }
 }
 
+function showWelcomeMessage() {
+    const welcomeMessageDiv = document.getElementById('welcomeMessage');
+    if (welcomeMessageDiv) {
+        welcomeMessageDiv.style.display = 'block';
+    }
+}
+
 function sendMessage() {
     const baseUrl = document.getElementById('baseUrlInput').value;
     const model = document.getElementById('modelSelect').value;
@@ -51,6 +58,10 @@ const newChatButton = document.getElementById('newChatButton');
 if (newChatButton) {
     newChatButton.addEventListener('click', () => {
         vscode.postMessage({ command: 'ottollama.newChat' });
+        document.querySelector('.chat-messages').innerHTML = '';
+        document.getElementById('promptInput').value = '';
+        document.getElementById('promptInput').style.height = '24px'; // Reset the height
+        showWelcomeMessage();
     });
 } else {
     console.error('New Chat Button not found');
@@ -80,6 +91,33 @@ document.addEventListener('click', (event) => {
         chatHistoryDiv.style.display = 'none';
     }
 });
+
+function loadChatHistory() {
+    vscode.postMessage({ command: 'loadChatHistory' });
+}
+
+function deleteChatRecord(title) {
+    vscode.postMessage({ command: 'deleteChatRecord', title });
+}
+
+function loadChatRecord(title) {
+    vscode.postMessage({ command: 'loadChatRecord', title });
+}
+
+function renderChatHistory(records) {
+    const historyContainer = document.getElementById('historyContainer');
+    historyContainer.innerHTML = '';
+    records.reverse().forEach(record => {
+        const recordDiv = document.createElement('div');
+        recordDiv.classList.add('chat-record');
+        recordDiv.innerHTML = `
+            <span>${record.title}</span>
+            <button onclick="deleteChatRecord('${record.title}')">&#x1F5D1;</button>
+            <button onclick="loadChatRecord('${record.title}')">&#x1F504;</button>
+        `;
+        historyContainer.appendChild(recordDiv);
+    });
+}
 
 window.addEventListener('message', (event) => {
     const message = event.data;
@@ -115,9 +153,28 @@ window.addEventListener('message', (event) => {
         promptInput.style.height = '24px'; // Reset the height
     } else if (message.type === 'loadingState') {
         setLoadingState(message.isLoading);
-    } 
+    } else if (message.type === 'chatHistory') {
+        renderChatHistory(message.records);
+    } else if (message.type === 'loadChatRecord') {
+        chatMessagesContainer.innerHTML = '';
+        message.record.messages.forEach(msg => {
+            const newMessageDiv = document.createElement('div');
+            newMessageDiv.classList.add('message', msg.role);
+            const textDiv = document.createElement('div');
+            textDiv.classList.add('text');
+            textDiv.textContent = msg.content;
+            newMessageDiv.appendChild(textDiv);
+            chatMessagesContainer.prepend(newMessageDiv);
+        });
+    } else if (message.type === 'clearChat') {
+        chatMessagesContainer.innerHTML = '';
+        promptInput.value = '';
+        promptInput.style.height = '24px'; // Reset the height
+    }
 });
 
+// Load chat history on window load
 window.onload = () => {
     setLoadingState(false);
+    loadChatHistory();
 };

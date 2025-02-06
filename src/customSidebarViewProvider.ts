@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import axios from 'axios';
-
+import { startNewChatRecord, appendToActiveChatRecord, loadChatRecords, deleteChatRecord, getActiveChatRecord } from './chatHistoryManager';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -45,7 +45,7 @@ export class CustomSidebarViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "vscodeSidebar.openview";
 
   private _view?: vscode.WebviewView;
-  
+  private activeChatTitle: string | null = null;
 
   constructor(private readonly _extensionUri: vscode.Uri) {}
 
@@ -65,17 +65,28 @@ export class CustomSidebarViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = this.getHtmlContent(webviewView.webview, modelOptions, defaultBaseUrl);
     webviewView.webview.onDidReceiveMessage(
       message => {
-          switch (message.command) {
-              case 'sendPrompt':
-                  this.handleSendPrompt(message);
-                  break;
-              // Diğer mesaj komutlarını burada işleyebilirsiniz
-          }
+        switch (message.command) {
+          case 'sendPrompt':
+            this.handleSendPrompt(message);
+            break;
+          case 'loadChatHistory':
+            this.loadChatHistory();
+            break;
+          case 'deleteChatRecord':
+            this.deleteChatRecord(message.title);
+            break;
+          case 'loadChatRecord':
+            this.loadChatRecord(message.title);
+            break;
+          case 'ottollama.newChat':
+            this.startNewChat();
+            break;
+        }
       },
       undefined
-      
-  );
+    );
   }
+
   private async handleSendPrompt(message: OllamaMessage) {
     const baseUrl = message.baseUrl || 'http://localhost:11434';
     if (message.command === 'sendPrompt') {
@@ -114,6 +125,15 @@ export class CustomSidebarViewProvider implements vscode.WebviewViewProvider {
                 model: assistantMessage.model
             });
 
+            if (!this.activeChatTitle) {
+                this.activeChatTitle = userMessage.content.split(' ').slice(0, 5).join(' ');
+                startNewChatRecord(this.activeChatTitle);
+            }
+
+            appendToActiveChatRecord(userMessage);
+            appendToActiveChatRecord(assistantMessage);
+            this.loadChatHistory();
+
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             this._view?.webview.postMessage({
@@ -129,7 +149,36 @@ export class CustomSidebarViewProvider implements vscode.WebviewViewProvider {
     }
 }
 
-  
+  private loadChatHistory() {
+    const records = loadChatRecords();
+    this._view?.webview.postMessage({
+      type: 'chatHistory',
+      records
+    });
+  }
+
+  private deleteChatRecord(title: string) {
+    deleteChatRecord(title);
+    this.loadChatHistory();
+  }
+
+  private loadChatRecord(title: string) {
+    const records = loadChatRecords();
+    const record = records.find(r => r.title === title);
+    if (record) {
+      this._view?.webview.postMessage({
+        type: 'loadChatRecord',
+        record
+      });
+    }
+  }
+
+  private startNewChat() {
+    this.activeChatTitle = null;
+    this._view?.webview.postMessage({
+      type: 'clearChat'
+    });
+  }
 
   private getHtmlContent(webview: vscode.Webview, modelOptions:string, defaultBaseUrl:string ): string {
     // Get the local path to main script run in the webview,

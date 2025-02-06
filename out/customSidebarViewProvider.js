@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CustomSidebarViewProvider = void 0;
 const vscode = require("vscode");
 const axios_1 = require("axios");
+const chatHistoryManager_1 = require("./chatHistoryManager");
 const defaultBaseUrl = 'http://localhost:11434';
 async function modelList() {
     try {
@@ -24,6 +25,7 @@ async function modelList() {
 class CustomSidebarViewProvider {
     constructor(_extensionUri) {
         this._extensionUri = _extensionUri;
+        this.activeChatTitle = null;
     }
     async resolveWebviewView(webviewView, context, token) {
         this._view = webviewView;
@@ -39,7 +41,18 @@ class CustomSidebarViewProvider {
                 case 'sendPrompt':
                     this.handleSendPrompt(message);
                     break;
-                // Diğer mesaj komutlarını burada işleyebilirsiniz
+                case 'loadChatHistory':
+                    this.loadChatHistory();
+                    break;
+                case 'deleteChatRecord':
+                    this.deleteChatRecord(message.title);
+                    break;
+                case 'loadChatRecord':
+                    this.loadChatRecord(message.title);
+                    break;
+                case 'ottollama.newChat':
+                    this.startNewChat();
+                    break;
             }
         }, undefined);
     }
@@ -76,6 +89,13 @@ class CustomSidebarViewProvider {
                     text: assistantMessage.content,
                     model: assistantMessage.model
                 });
+                if (!this.activeChatTitle) {
+                    this.activeChatTitle = userMessage.content.split(' ').slice(0, 5).join(' ');
+                    (0, chatHistoryManager_1.startNewChatRecord)(this.activeChatTitle);
+                }
+                (0, chatHistoryManager_1.appendToActiveChatRecord)(userMessage);
+                (0, chatHistoryManager_1.appendToActiveChatRecord)(assistantMessage);
+                this.loadChatHistory();
             }
             catch (error) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -91,6 +111,33 @@ class CustomSidebarViewProvider {
                 });
             }
         }
+    }
+    loadChatHistory() {
+        const records = (0, chatHistoryManager_1.loadChatRecords)();
+        this._view?.webview.postMessage({
+            type: 'chatHistory',
+            records
+        });
+    }
+    deleteChatRecord(title) {
+        (0, chatHistoryManager_1.deleteChatRecord)(title);
+        this.loadChatHistory();
+    }
+    loadChatRecord(title) {
+        const records = (0, chatHistoryManager_1.loadChatRecords)();
+        const record = records.find(r => r.title === title);
+        if (record) {
+            this._view?.webview.postMessage({
+                type: 'loadChatRecord',
+                record
+            });
+        }
+    }
+    startNewChat() {
+        this.activeChatTitle = null;
+        this._view?.webview.postMessage({
+            type: 'clearChat'
+        });
     }
     getHtmlContent(webview, modelOptions, defaultBaseUrl) {
         // Get the local path to main script run in the webview,
