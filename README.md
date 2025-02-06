@@ -27,7 +27,7 @@ Local Ollama Extension is a Visual Studio Code extension that allows users to in
 ### Local Ollama Extension
 1. **Clone the repository**:
     ```sh
-    git clone https://github.com/yourusername/ottollama-extension.git
+    git clone https://github.com/erdincyasar/ottollama.git
     cd ottollama-extension
     ```
 2. **Install dependencies**:
