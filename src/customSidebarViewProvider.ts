@@ -19,25 +19,24 @@ interface OllamaMessage {
 
 const defaultBaseUrl = 'http://localhost:11434';
 
-// ...existing code...
-
 async function modelList() {
   try {
     const response = await axios.get(`${defaultBaseUrl}/api/tags`);
     const models = response.data.models;
     if (!Array.isArray(models)) {
       throw new Error('API response is not an array');
-  }
+    }
+
+    // Sort models by size in ascending order
+    models.sort((a: any, b: any) => a.size - b.size);
+
     const modelOptions = models.map((model: any) => `<option value="${model.model}">${model.name}</option>`).join('');
-    // console.log(modelOptions);
     return modelOptions;
-    // modelOptions burada kullanılabilir
   } catch (error) {
     console.error('Error fetching tags:', error);
     return '';
   }
 }
-// ...existing code...
 
 
 

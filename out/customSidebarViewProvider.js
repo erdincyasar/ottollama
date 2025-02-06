@@ -4,7 +4,6 @@ exports.CustomSidebarViewProvider = void 0;
 const vscode = require("vscode");
 const axios_1 = require("axios");
 const defaultBaseUrl = 'http://localhost:11434';
-// ...existing code...
 async function modelList() {
     try {
         const response = await axios_1.default.get(`${defaultBaseUrl}/api/tags`);
@@ -12,17 +11,16 @@ async function modelList() {
         if (!Array.isArray(models)) {
             throw new Error('API response is not an array');
         }
+        // Sort models by size in ascending order
+        models.sort((a, b) => a.size - b.size);
         const modelOptions = models.map((model) => `<option value="${model.model}">${model.name}</option>`).join('');
-        // console.log(modelOptions);
         return modelOptions;
-        // modelOptions burada kullanılabilir
     }
     catch (error) {
         console.error('Error fetching tags:', error);
         return '';
     }
 }
-// ...existing code...
 class CustomSidebarViewProvider {
     constructor(_extensionUri) {
         this._extensionUri = _extensionUri;
